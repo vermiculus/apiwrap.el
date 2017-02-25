@@ -95,6 +95,14 @@ strings."
   "Convert a keyword to a symbol."
   (intern (substring (symbol-name kw) 1)))
 
+(defun apiwrap--get (prop default override)
+  "Get PROP by merging DEFAULT and OVERRIDE.
+If OVERRIDE as a value for PROP, that value is returned (even if
+that value is nil)."
+  (if (memq prop override)
+      (plist-get override prop)
+    (plist-get default prop)))
+
 (defun apiwrap--defresource-doc (doc object-param-doc method external-resource link)
   "Documentation string for resource-wrapping functions created
 by `apiwrap--defresource'"
@@ -145,12 +153,16 @@ new function.  If nil, it is ignored.  For details on this
 behavior, see `apiwrap-resolve-api-params'.
 
 If non-nil, INTERNAL-RESOURCE is the resource-string used to
-resolve OBJECT to the ultimate call."
+resolve OBJECT to the ultimate call.
+
+KWARGS is a list of override parameters.  Values set
+here (notably those explicitly set to nil) will take precedence
+of the defaults provided to `apiwrap-new-backend'."
          (upcase (symbol-name method))
          (make-list 4 service-name)))
 
 (defun apiwrap--defresource (prefix method api-func link-func
-                                    standard-parameters
+                                    standard-parameters default-kwargs kwargs
                                     external-resource doc version link
                                     object internal-resource)
   "Define a new resource-wrapping function.
@@ -170,6 +182,10 @@ to METHOD.  See `apiwrap-new-backend' for details.
 LINK-FUNC, see `apiwrap-new-backend'.
 
 STANDARD-PARAMETERS, see `apiwrap-new-backend'.
+
+DEFAULT-KWARGS, see `apiwrap-new-backend'.
+
+KWARGS overrides DEFAULT-KWARGS (notably those set to nil).
 
 DOC is a documentation string for this resource.
 
@@ -215,19 +231,25 @@ details on that behavior."
          (symbol (intern (concat prefix "-" (symbol-name method) symbol)))
          (args (append (when object (list object)) '(&optional data &rest params)))
          (object-param-doc (alist-get object standard-parameters))
-         (link (funcall link-func version link)))
+         (link (funcall link-func version link))
+         (form `(apply ',api-func
+                       ,(apiwrap-resolve-api-params object internal-resource)
+                       (if (keywordp data)
+                           (list (apiwrap-plist->alist (cons data params)))
+                         (list (apiwrap-plist->alist params) data))))
+         (post-process (apiwrap--get :post-process default-kwargs kwargs)))
     (when (and object (not object-param-doc))
-      (error "Standard parameter `%s' not documented" object))
+      (user-error "Standard parameter `%s' not documented" object))
+    (when post-process
+      (if (functionp post-process)
+          (setq form (list post-process form))
+        (user-error "`%S' (:post-process value) is not a function" post-process)))
     `(prog1
          (defun ,symbol ,args ,(apiwrap--defresource-doc
                                 doc object-param-doc method
                                 external-resource link)
                 (declare (indent defun))
-                (apply ',api-func
-                       ,(apiwrap-resolve-api-params object internal-resource)
-                       (if (keywordp data)
-                           (list (apiwrap-plist->alist (cons data params)))
-                         (list (apiwrap-plist->alist params) data))))
+                ,form)
        ;; I feel like the following will be useful someday -- perhaps
        ;; some sort of report on what API end-points are currently
        ;; available
@@ -238,7 +260,8 @@ details on that behavior."
        (put ',symbol 'apiwrap-documentation ,link))))
 
 (defmacro apiwrap-new-backend (service-name prefix standard-parameters link-func
-                                            get-func put-func head-func post-func patch-func delete-func)
+                                            get-func put-func head-func post-func patch-func delete-func
+                                            &rest default-kwargs)
   "Define a new API backend.
 
 SERVICE-NAME is the name of the service this backend will wrap.
@@ -265,7 +288,13 @@ macros are design for; you may wish to consider writing wrappers.
 Each function is expected to take a resource-string as the first
 parameter.  The second parameter should be an alist of parameters
 to the resource.  The third parameter should be an alist of data
-for the resource (e.g., for posting)."
+for the resource (e.g., for posting).
+
+DEFAULT-KWARGS is a list of additional arguments to configure the
+generated macros.
+
+  :post-process   function to process the responses of the API
+                  before returning"
   (declare (indent defun))
   (when (memq nil (mapcar #'functionp (list get-func put-func head-func post-func patch-func delete-func)))
     (byte-compile-warn "one or more API primitives for %S service not known to exist" service-name))
@@ -276,11 +305,21 @@ for the resource (e.g., for posting)."
      ,@(mapcar (lambda (cell)
                  (let* ((method (car cell)) (func (cdr cell))
                         (symbol (intern (concat prefix "-def" (symbol-name method)))))
-                   `(defmacro ,symbol (resource doc version link &optional object internal-resource)
+                   `(defmacro ,symbol (resource doc version link
+                                                &optional object internal-resource
+                                                &rest kwargs)
                       ,(apiwrap--defmethod-doc service-name method)
                       (declare (indent defun) (doc-string 2))
+                      (when (keywordp object)
+                        (setq kwargs (cons object (cons internal-resource kwargs))
+                              object nil
+                              internal-resource nil))
+                      (when (keywordp internal-resource)
+                        (setq kwargs (cons internal-resource kwargs)
+                              internal-resource nil))
                       (apiwrap--defresource ,prefix ',method ',func
-                        ,link-func ',standard-parameters resource doc version link
+                        ,link-func ',standard-parameters ',default-kwargs kwargs
+                        resource doc version link
                         object internal-resource))))
                `((get . ,get-func) (put . ,put-func) (head . ,head-func)
                  (post . ,post-func) (patch . ,patch-func) (delete . ,delete-func)))))

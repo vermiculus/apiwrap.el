@@ -58,12 +58,12 @@ at runtime (like ~apiwrap-plist->alist~).
 * Using the Generated Macros
 After evaluating the above call to ~apiwrap-new-backend~, you will have six
 new macros for your use:
-- ~my-github-wrapper-get~
-- ~my-github-wrapper-put~
-- ~my-github-wrapper-head~
-- ~my-github-wrapper-post~
-- ~my-github-wrapper-patch~
-- ~my-github-wrapper-delete~
+- ~my-github-wrapper-defget~
+- ~my-github-wrapper-defput~
+- ~my-github-wrapper-defhead~
+- ~my-github-wrapper-defpost~
+- ~my-github-wrapper-defpatch~
+- ~my-github-wrapper-defdelete~
 These wonderful new macros super-charge your primitive API functions
 into documentation-generating, resource-wrapping machines!  Let's
 define a wrapper for the GitHub API endpoint =GET /issues=.
@@ -180,8 +180,72 @@ the context of our =repo= object using syntax akin to ~let-alist~:
   ;; calls GET /repos/vermiculus/ghub-plus/issues
 #+END_SRC
 
+** Other configuration
+=API-Wrap.el= aims to be configurable enough to suit all kinds of needs.
+Each call to ~my-github-wrapper-def*~ can take optional keyword
+arguments as well.  Let's look at a use-case for one of these keyword
+parameters.
+
+In the GitHub API, there's a lot of junk that we might not ever care
+about.  For this, you can specify a =:post-process= function to filter
+out extraneous content.  For this example, I've written
+~remove-api-links~ below:
+#+BEGIN_SRC elisp
+  (defun remove-api-links (response)
+    "Recursively remove from alist RESPONSE all those properties that
+  point back to the API."
+    (delq nil (if (and (consp response) (consp (car response)))
+                  (mapcar #'remove-api-links response)
+                (if (consp response)
+                    (unless (and (stringp (cdr response))
+                                 (string-match-p (rx bos "https://api.github.com/")
+                                                 (cdr response)))
+                      (cons (car response)
+                            (if (consp (cdr response))
+                                (mapcar #'remove-api-links (cdr response))
+                              (cdr response))))))))
+#+END_SRC
+I can now specify this function to process the response the
+return-value ~ghub-get~:
+#+BEGIN_SRC elisp
+  (my-github-wrapper-defget "/repos/:owner/:repo/issues"
+    "List issues for a repository."
+    3 "issues/#list-issues-for-a-repository"
+    repo "/repos/:owner.login/:name/issues"
+    :post-process remove-api-links)
+#+END_SRC
+For wrappers that don't take any arguments, I don't need to worry
+about providing explicit =nil= values; ~def-*~ is smart enough to figure
+it out:
+#+BEGIN_SRC elisp
+  (ghubp-defget "/user"
+    "Return the currently authenticated user"
+    3 "users/#get-the-authenticated-user"
+    :post-process remove-api-links)
+#+END_SRC
+
+In this case, though, I /always/ want to remove the API links from the
+response.  To specify this as the default, I'll just modify my
+~api-new-backend~ form:
+#+BEGIN_SRC elisp
+  (apiwrap-new-backend "GitHub" "my-github-wrapper"
+    ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
+     (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
+    (lambda (version link) (format "https://developer.github.com/v%d/%s" version link))
+    ghub-get ghub-put ghub-head ghub-post ghub-patch ghub-delete
+    :post-process remove-api-links)
+#+END_SRC
+If I later have a wrapper that shouldn't post-process anything, I can
+provide an explicit =nil= value in the ~def-*~ macro's arguments:
+#+BEGIN_SRC elisp
+  (ghubp-defget "/user"
+    "Return the currently authenticated user"
+    3 "users/#get-the-authenticated-user"
+    :post-process nil)
+#+END_SRC
+
 * Using Macro-Generated Wrappers
-The wrappers should be a joy to use, now:
+This is the fun part!  The wrappers should be a joy to use:
 
 #+BEGIN_SRC elisp
   ;;; GET /issues
@@ -203,4 +267,4 @@ The wrappers should be a joy to use, now:
 #+END_SRC
 As an exercise, how would I wrap =(ghub-get "/repos/magit/magit")=?
 
-I hope you enjoy using =API-Wrap.el= as much as I enjoyed writing it!
+I hope you enjoy using =API-Wrap.el= as much as I've enjoyed writing it!
