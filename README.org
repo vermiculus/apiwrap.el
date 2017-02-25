@@ -26,11 +26,13 @@ Suppose I want to use =ghub='s primitives to define a bunch of resource
 wrappers to use in my application code.  To do this, I'll use
 ~apiwrap-new-backend~:
 #+BEGIN_SRC elisp
-  (apiwrap-new-backend "GitHub" "my-github-wrapper"
-    ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
-     (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
-    (lambda (version link) (format "https://developer.github.com/v%d/%s" version link))
-    ghub-get ghub-put ghub-head ghub-post ghub-patch ghub-delete)
+  (eval-when-compile
+    (require 'apiwrap)
+    (apiwrap-new-backend "GitHub" "my-github-wrapper"
+      ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
+       (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
+      (lambda (version link) (format "https://developer.github.com/v%d/%s" version link))
+      ghub-get ghub-put ghub-head ghub-post ghub-patch ghub-delete))
 #+END_SRC
 Refer to the macro's docstring for full a full description of the
 parameters, but take away these highlights:
@@ -44,6 +46,11 @@ parameters, but take away these highlights:
 - we provide a function to generate a link to the official API
   documentation from GitHub -- after all, these are just wrappers!
 - we provide primitive handlers for each HTTP verb
+
+Note that by wrapping this one call in ~eval-when-compile~, I ensure
+that the byte code won't include definitions for the macros it
+generates.  Once you use =API-Wrap.el= to compile your code, you don't
+need to load it again!
 
 * Using the Generated Macros
 After evaluating the above call to ~apiwrap-new-backend~, you will have six
