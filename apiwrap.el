@@ -273,16 +273,17 @@ for the resource (e.g., for posting)."
     (error "invalid link function"))
 
   `(prog1 ,service-name
-     ,@(loop for method in `((get . ,get-func) (put . ,put-func) (head . ,head-func)
-                             (post . ,post-func) (patch . ,patch-func) (delete . ,delete-func))
-             collect
-             (let ((symbol (intern (concat prefix "-def" (symbol-name (car method))))))
-               `(defmacro ,symbol (resource doc version link &optional object internal-resource)
-                  ,(apiwrap--defmethod-doc service-name (car method))
-                  (declare (indent defun) (doc-string 2))
-                  (apiwrap--defresource ,prefix ',(car method) ',(cdr method)
-                    ,link-func ',standard-parameters resource doc version link
-                    object internal-resource))))))
+     ,@(mapcar (lambda (cell)
+                 (let* ((method (car cell)) (func (cdr cell))
+                        (symbol (intern (concat prefix "-def" (symbol-name method)))))
+                   `(defmacro ,symbol (resource doc version link &optional object internal-resource)
+                      ,(apiwrap--defmethod-doc service-name method)
+                      (declare (indent defun) (doc-string 2))
+                      (apiwrap--defresource ,prefix ',method ',func
+                        ,link-func ',standard-parameters resource doc version link
+                        object internal-resource))))
+               `((get . ,get-func) (put . ,put-func) (head . ,head-func)
+                 (post . ,post-func) (patch . ,patch-func) (delete . ,delete-func)))))
 
 (provide 'apiwrap)
 ;;; apiwrap.el ends here
