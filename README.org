@@ -1,0 +1,196 @@
+#+Title: API-Wrap.el
+
+=API-Wrap.el= is a tool to interface with the APIs of your favorite
+services.  These macros make it easy to define efficient and
+consistently-documented Elisp functions that use a natural syntax for
+application development.
+
+Now, =API-Wrap.el= can't do /all/ of the work for you; you will have to
+supply your own primitive functions that can query the API and return
+the processed response, but these are expected to be the absolute
+/bare-bones/.  For an example of what kinds of primitives =API-Wrap.el=
+expects, refer to the =ghub= [[https://github.com/tarsius/ghub][package]]'s definitions for its
+~ghub-{get,put,head,post,patch,delete}~ functions.  In general, these
+functions are to be used as follows:
+#+BEGIN_SRC elisp
+  (ghub-get "/repos/octocat/Hello-World/issues"
+            '((state . "closed"))
+            ;; optional DATA parameter omitted
+            )
+#+END_SRC
+If you have a function like this, you should be good to go!  If you
+don't, you can likely model your primitives on =ghub='s (tiny) codebase.
+
+* Defining API Backends
+Suppose I want to use =ghub='s primitives to define a bunch of resource
+wrappers to use in my application code.  To do this, I'll use
+~apiwrap-new-backend~:
+#+BEGIN_SRC elisp
+  (apiwrap-new-backend "GitHub" "my-github-wrapper"
+    ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
+     (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
+    (lambda (version link) (format "https://developer.github.com/v%d/%s" version link))
+    ghub-get ghub-put ghub-head ghub-post ghub-patch ghub-delete)
+#+END_SRC
+Refer to the macro's docstring for full a full description of the
+parameters, but take away these highlights:
+- we provide a service name that will be referenced in the
+  documentation
+- we provide a prefix for all macros and functions generated from
+  here forward
+- we provide an alist of standard parameters with standard
+  documentation -- these parameters will be used by my application code
+  and are usually similarly structured objects
+- we provide a function to generate a link to the official API
+  documentation from GitHub -- after all, these are just wrappers!
+- we provide primitive handlers for each HTTP verb
+
+* Using the Generated Macros
+After evaluating the above call to ~apiwrap-new-backend~, you will have six
+new macros for your use:
+- ~my-github-wrapper-get~
+- ~my-github-wrapper-put~
+- ~my-github-wrapper-head~
+- ~my-github-wrapper-post~
+- ~my-github-wrapper-patch~
+- ~my-github-wrapper-delete~
+These wonderful new macros super-charge your primitive API functions
+into documentation-generating, resource-wrapping machines!  Let's
+define a wrapper for the GitHub API endpoint =GET /issues=.
+
+*** A simple use-case
+Here is the definition of ~my-github-wrapper-get-issues~:
+#+BEGIN_SRC elisp
+  (my-github-wrapper-defget "/issues"
+    "List all issues assigned to the authenticated user across all
+  visible repositories including owned repositories, member
+  repositories, and organization repositories."
+    3 "issues/#list-issues")
+#+END_SRC
+If we refer to the documentation of ~my-github-wrapper-defget~, we'll
+see that =/issues= is the method call as written in the linked GitHub
+API documentation ([[https://developer.github.com/v3/issues/#list-issues][reference]]).  A brief docstring is provided (here
+copied from the API) as well as the API version this resource
+corresponds to.
+
+If we now inspect the documentation of ~my-github-wrapper-get-issues~,
+we'll see all of our information included in the docstring:
+#+BEGIN_EXAMPLE
+  my-github-wrapper-get-issues is a Lisp function.
+
+  (my-github-wrapper-get-issues &optional DATA &rest PARAMS)
+
+  List all issues assigned to the authenticated user across all
+  visible repositories including owned repositories, member
+  repositories, and organization repositories.
+
+  PARAMS is a plist of parameters appended to the method call.
+
+  DATA is a data structure to be sent with this request.  If it’s
+  not required, it can simply be omitted.
+
+  --------------------
+
+  This generated function wraps
+
+      GET /issues
+
+  which is documented at
+
+      URL ‘https://developer.github.com/v3/issues/#list-issues’
+
+  [back]
+#+END_EXAMPLE
+In addition to the documentation we provided, the =DATA= and =PARAMS=
+parameters have been added to the function and appropriately
+documented.  At the end of the documentaton, we report that the
+function was generated from a raw method call and where that method is
+fully documented (e.g., what =PARAMS= it accepts, what the format of
+=DATA= is, the structure of its response, etc.).
+
+*** On-the-fly parameters
+Each function defined with the ~my-github-wrapper-def*~ macros accepts
+=PARAMS= as a =&rest= argument.  This argument is effectively a list of
+keyword arguments to the method call -- similar to how =&keys= works in
+Common Lisp.  However, collecting them as a list allows us to perform
+generic processing on them (with ~apiwrap-plist->alist~) so that they
+can be passed straight to the ~ghub-{get,put,...}~ primitives.  For
+example,
+#+BEGIN_SRC elisp
+  ;; retrieve closed issues
+  (my-github-wrapper-get-issues :state "closed")
+#+END_SRC
+
+If I wanted to use =:state 'closed= instead, I would need to handle that
+in my primitive function (in this case, =ghub-get=).  For example, if I
+wanted to convert symbols to strings, I could write a new 'primitive'
+function:
+#+BEGIN_SRC elisp
+  (defun my-github-wrapper--primitive-get (resource &optional params data)
+    (ghub-get resource (my-github-wrapper--preprocess-params) params data))
+
+  (defun my-github-wrapper--preprocess-params (alist)
+    (mapcar (lambda (cell)
+              (if (symbolp (cdr cell))
+                  (cons (car cell) (symbol-name (cdr cell)))
+                cell))
+            alist))
+#+END_SRC
+I would then use =my-github-wrapper--primitive-get= in my prior call to
+=apiwrap-new-backend=.
+
+*** A complex use-case
+Of course, many method calls accept 'interpolated' parameters
+(so-called for lack of a better phrase).  Thanks to some very slick
+macro-magic, ~my-github-wrapper-def*~ can handle these, too!
+
+Consider the definition of
+~my-github-wrapper-get-repos-owner-repo-issues~:
+#+BEGIN_SRC elisp
+  (my-github-wrapper-defget "/repos/:owner/:repo/issues"
+    "List issues for a repository."
+    3 "issues/#list-issues-for-a-repository"
+    repo "/repos/:owner.login/:name/issues")
+#+END_SRC
+We've provided two extra parameters: =repo= and the string
+=/repos/:owner.login/:name/issues=. Since ~my-github-wrapper-defget~ is a
+macro, =repo= is a just a symbol that will be used in the argument list
+of the generated function (and inserted into its docstring according
+to ~my-github-wrapper--standard-parameters~).
+
+This second string is where things get interesting.  This argument
+overrides the first, as-advertised method call for a very specific
+purpose: when our new function is used, this string is evaluated in
+the context of our =repo= object using syntax akin to ~let-alist~:
+#+BEGIN_SRC elisp
+  ;; repo "/repos/:owner.login/:name/issues"
+  (my-github-wrapper-get-repos-owner-repo-issues
+   '((owner (login . "vermiculus"))
+     (name . "ghub-plus")))
+  ;; calls GET /repos/vermiculus/ghub-plus/issues
+#+END_SRC
+
+* Using Macro-Generated Wrappers
+The wrappers should be a joy to use, now:
+
+#+BEGIN_SRC elisp
+  ;;; GET /issues
+  (my-github-wrapper-get-issues)
+
+  ;;; GET /issues?state=closed
+  (my-github-wrapper-get-issues :state 'closed)
+
+  (let ((repo (ghub-get "/repos/magit/magit")))
+    (list
+     ;; Magit's issues
+     ;; GET /repos/magit/magit/issues
+     (my-github-wrapper-get-repos-owner-repo-issues repo)
+
+     ;; Magit's closed issues labeled 'easy'
+     ;; GET /repos/magit/magit/issues?state=closed&labels=easy
+     (my-github-wrapper-get-repos-owner-repo-issues repo
+       :state 'closed :labels "easy")))
+#+END_SRC
+As an exercise, how would I wrap =(ghub-get "/repos/magit/magit")=?
+
+I hope you enjoy using =API-Wrap.el= as much as I enjoyed writing it!
