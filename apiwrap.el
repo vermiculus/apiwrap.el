@@ -32,6 +32,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 (defun apiwrap-resolve-api-params (object url &optional noencode)
   "Resolve parameters in URL to values in OBJECT.
 
@@ -335,8 +337,8 @@ macros.
         Function to process the responses of the API before
         returning.
 "
-  (let ((sname (gensym)) (sprefix (gensym))
-        (sstdp (gensym)) (sfuncs (gensym)))
+  (let ((sname (cl-gensym)) (sprefix (cl-gensym))
+        (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
     `(let ((,sname ,name)
            (,sprefix ,prefix)
            (,sstdp ,standard-parameters)
