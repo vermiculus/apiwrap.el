@@ -335,8 +335,14 @@ macros.
         Function to process the responses of the API before
         returning.
 "
-  `(prog1 ,name ,@(apiwrap-genmacros name prefix standard-parameters
-                                     (apiwrap-plist->alist functions))))
+  (let ((sname (gensym)) (sprefix (gensym))
+        (sstdp (gensym)) (sfuncs (gensym)))
+    `(let ((,sname ,name)
+           (,sprefix ,prefix)
+           (,sstdp ,standard-parameters)
+           (,sfuncs ',(mapcar (lambda (f) (cons (car f) (eval (cdr f))))
+                              (apiwrap-plist->alist functions))))
+       (mapc #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sfuncs)))))
 
 (provide 'apiwrap)
 ;;; apiwrap.el ends here
