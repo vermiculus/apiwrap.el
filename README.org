@@ -58,12 +58,12 @@ at runtime (like ~apiwrap-plist->alist~).
 * Using the Generated Macros
 After evaluating the above call to ~apiwrap-new-backend~, you will have six
 new macros for your use:
-- ~my-github-wrapper-defget~
-- ~my-github-wrapper-defput~
-- ~my-github-wrapper-defhead~
-- ~my-github-wrapper-defpost~
-- ~my-github-wrapper-defpatch~
-- ~my-github-wrapper-defdelete~
+- ~defapiget-my-github-wrapper~
+- ~defapiput-my-github-wrapper~
+- ~defapihead-my-github-wrapper~
+- ~defapipost-my-github-wrapper~
+- ~defapipatch-my-github-wrapper~
+- ~defapidelete-my-github-wrapper~
 These wonderful new macros super-charge your primitive API functions
 into documentation-generating, resource-wrapping machines!  Let's
 define a wrapper for the GitHub API endpoint =GET /issues=.
@@ -71,13 +71,13 @@ define a wrapper for the GitHub API endpoint =GET /issues=.
 *** A simple use-case
 Here is the definition of ~my-github-wrapper-get-issues~:
 #+BEGIN_SRC elisp
-  (my-github-wrapper-defget "/issues"
+  (defapiget-my-github-wrapper "/issues"
     "List all issues assigned to the authenticated user across all
   visible repositories including owned repositories, member
   repositories, and organization repositories."
     3 "issues/#list-issues")
 #+END_SRC
-If we refer to the documentation of ~my-github-wrapper-defget~, we'll
+If we refer to the documentation of ~defapiget-my-github-wrapper~, we'll
 see that =/issues= is the method call as written in the linked GitHub
 API documentation ([[https://developer.github.com/v3/issues/#list-issues][reference]]).  A brief docstring is provided (here
 copied from the API) as well as the API version this resource
@@ -119,12 +119,12 @@ fully documented (e.g., what =PARAMS= it accepts, what the format of
 =DATA= is, the structure of its response, etc.).
 
 *** On-the-fly parameters
-Each function defined with the ~my-github-wrapper-def*~ macros accepts
-=PARAMS= as a =&rest= argument.  This argument is effectively a list of
-keyword arguments to the method call -- similar to how =&keys= works in
-Common Lisp.  However, collecting them as a list allows us to perform
-generic processing on them (with ~apiwrap-plist->alist~) so that they
-can be passed straight to the ~ghub-{get,put,...}~ primitives.  For
+Each function defined with the ~defapi*-my-github-wrapper~ macros
+accepts =PARAMS= as a =&rest= argument.  This argument is effectively a
+list of keyword arguments to the method call -- similar to how =&keys=
+works in Common Lisp.  However, collecting them as a list allows us to
+perform generic processing on them (with ~apiwrap-plist->alist~) so that
+they can be passed straight to the ~ghub-{get,put,...}~ primitives.  For
 example,
 #+BEGIN_SRC elisp
   ;; retrieve closed issues
@@ -152,21 +152,21 @@ I would then use =my-github-wrapper--primitive-get= in my prior call to
 *** A complex use-case
 Of course, many method calls accept 'interpolated' parameters
 (so-called for lack of a better phrase).  Thanks to some very slick
-macro-magic, ~my-github-wrapper-def*~ can handle these, too!
+macro-magic, ~defapi*-my-github-wrapper~ can handle these, too!
 
 Consider the definition of
 ~my-github-wrapper-get-repos-owner-repo-issues~:
 #+BEGIN_SRC elisp
-  (my-github-wrapper-defget "/repos/:owner/:repo/issues"
+  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
     3 "issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues")
 #+END_SRC
 We've provided two extra parameters: =repo= and the string
-=/repos/:owner.login/:name/issues=. Since ~my-github-wrapper-defget~ is a
-macro, =repo= is a just a symbol that will be used in the argument list
-of the generated function (and inserted into its docstring according
-to ~my-github-wrapper--standard-parameters~).
+=/repos/:owner.login/:name/issues=. Since ~defapiget-my-github-wrapper~ is
+a macro, =repo= is a just a symbol that will be used in the argument
+list of the generated function (and inserted into its docstring
+according to ~my-github-wrapper--standard-parameters~).
 
 This second string is where things get interesting.  This argument
 overrides the first, as-advertised method call for a very specific
@@ -182,7 +182,7 @@ the context of our =repo= object using syntax akin to ~let-alist~:
 
 ** Other configuration
 =API-Wrap.el= aims to be configurable enough to suit all kinds of needs.
-Each call to ~my-github-wrapper-def*~ can take optional keyword
+Each call to ~defapi*-my-github-wrapper~ can take optional keyword
 arguments as well.  Let's look at a use-case for one of these keyword
 parameters.
 
@@ -208,7 +208,7 @@ out extraneous content.  For this example, I've written
 I can now specify this function to process the response the
 return-value ~ghub-get~:
 #+BEGIN_SRC elisp
-  (my-github-wrapper-defget "/repos/:owner/:repo/issues"
+  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
     3 "issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues"
@@ -218,7 +218,7 @@ For wrappers that don't take any arguments, I don't need to worry
 about providing explicit =nil= values; ~def-*~ is smart enough to figure
 it out:
 #+BEGIN_SRC elisp
-  (ghubp-defget "/user"
+  (defapiget-my-github-wrapper "/user"
     "Return the currently authenticated user"
     3 "users/#get-the-authenticated-user"
     :post-process remove-api-links)
@@ -238,7 +238,7 @@ response.  To specify this as the default, I'll just modify my
 If I later have a wrapper that shouldn't post-process anything, I can
 provide an explicit =nil= value in the ~def-*~ macro's arguments:
 #+BEGIN_SRC elisp
-  (ghubp-defget "/user"
+  (defapiget-my-github-wrapper "/user"
     "Return the currently authenticated user"
     3 "users/#get-the-authenticated-user"
     :post-process nil)
