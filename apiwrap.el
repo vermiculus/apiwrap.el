@@ -224,7 +224,7 @@ configured.")
                                              &rest functions)
                  ,(apiwrap--docmacro name (apiwrap--kw->sym primitive))
                  (declare (indent defun) (doc-string 2))
-                 (apiwrap-gendefun ,name ,prefix ,standard-parameters ',primitive
+                 (apiwrap-gendefun ,name ,prefix ',standard-parameters ',primitive
                                    resource doc version link object internal-resource
                                    (append functions ',functions)))
               super-form)))
