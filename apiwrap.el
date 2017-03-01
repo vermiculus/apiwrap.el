@@ -235,7 +235,7 @@ configured.")
   (let ((internal-resource (or internal-resource resource))
         (args '(&optional data &rest params))
         (funsym (apiwrap-genfunsym prefix method resource))
-        fundoc resolved-resource form
+        resolved-resource form
         primitive-func link-func post-process-func)
 
     ;; Be smart about when configuration starts.  Neither `object' nor
@@ -275,21 +275,15 @@ configured.")
     (when post-process-func
       (setq form `(funcall ,post-process-func ,form)))
 
-    (put funsym 'apiwrap-prefix        prefix)
-    (put funsym 'apiwrap-version       version)
-    (put funsym 'apiwrap-method        method)
-    (put funsym 'apiwrap-endpoint      resource)
-    (put funsym 'apiwrap-documentation link)
-
-    (setq fundoc (apiwrap--docfn doc (alist-get object standard-parameters) method resource
-                                 (funcall (cadr (alist-get 'link functions)) funsym)))
-
-    `(prog1 (defun ,funsym ,args ,fundoc ,form)
+    `(prog1 (defun ,funsym ,args ,form)
        (put ',funsym 'apiwrap-prefix        ,prefix)
        (put ',funsym 'apiwrap-version       ,version)
        (put ',funsym 'apiwrap-method       ',method)
        (put ',funsym 'apiwrap-endpoint      ,resource)
-       (put ',funsym 'apiwrap-documentation ,link))))
+       (put ',funsym 'apiwrap-documentation ,link)
+       (put ',funsym 'function-documentation
+            (apiwrap--docfn ,doc ,(alist-get object standard-parameters) ',method ,resource
+                            (funcall ,(alist-get 'link functions) ',funsym))))))
 
 (defmacro apiwrap-new-backend (name prefix standard-parameters &rest functions)
   "Define a new API backend.
