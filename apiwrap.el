@@ -344,7 +344,7 @@ macros.
            (,sstdp ,standard-parameters)
            (,sfuncs ',(mapcar (lambda (f) (cons (car f) (eval (cdr f))))
                               (apiwrap-plist->alist functions))))
-       (mapc #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sfuncs)))))
+       (mapcar #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sfuncs)))))
 
 (provide 'apiwrap)
 ;;; apiwrap.el ends here
