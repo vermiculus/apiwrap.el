@@ -183,9 +183,9 @@ precedence over the defaults provided to `apiwrap-new-backend'."
     (intern
      (if resource
          (format "%s-%s%s" prefix api-method
-                 (->> resource
-                      (replace-regexp-in-string "/" "-")
-                      (replace-regexp-in-string ":" "")))
+                 (replace-regexp-in-string
+                  ":" ""
+                  (replace-regexp-in-string "/" "-" resource)))
        (format "defapi%s-%s" api-method prefix)))))
 
 (defun apiwrap-stdgenlink (sym)
