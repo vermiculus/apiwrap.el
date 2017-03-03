@@ -30,8 +30,8 @@ wrappers to use in my application code.  To do this, I'll use
 
   (eval-when-compile
     (apiwrap-new-backend "GitHub" "my-github-wrapper"
-      ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
-       (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
+      '((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
+        (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
       :get #'ghub-get :put #'ghub-put :head #'ghub-head
       :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
       :link (lambda (props)
@@ -51,6 +51,8 @@ parameters, but take away these highlights:
 - we provide a function to generate a link to the official API
   documentation from GitHub -- after all, these are just wrappers!
 - we provide primitive handlers for each HTTP verb
+- we provide a means to generate full documentation links based on
+  subsequent macro arguments
 
 Note that by wrapping this one call in ~eval-when-compile~, I ensure
 that the byte code won't include definitions for the macros it

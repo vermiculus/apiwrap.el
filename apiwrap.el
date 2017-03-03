@@ -335,8 +335,8 @@ macros.
         Function to process an alist and return a link.  Should
         take an alist as its sole parameter and return a
         fully-qualified URL to be considered the official
-        documentation of the API endpoint.  The default is to
-        return the raw LINK passed to `defapi<method>-<prefix>'.
+        documentation of the API endpoint.  The default is
+        `apiwrap-stdgenlink'.
 
         The passed alist contains the following properties:
 
