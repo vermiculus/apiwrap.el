@@ -232,11 +232,10 @@ configured.")
 
 (defun apiwrap-gendefun (name prefix standard-parameters method resource doc version link object internal-resource functions)
   "Generate a single defun form"
-  (let ((internal-resource (or internal-resource resource))
-        (args '(&optional data &rest params))
+  (let ((args '(&optional data &rest params))
         (funsym (apiwrap-genfunsym prefix method resource))
         resolved-resource form
-        primitive-func link-func post-process-func)
+        primitive-func link-func post-process-func pre-process-params-func)
 
     ;; Be smart about when configuration starts.  Neither `object' nor
     ;; `internal-resource' can be keywords, so we know that if they
@@ -252,8 +251,10 @@ configured.")
     ;; Now that our arguments have settled, let's use them
     (when object (push object args))
 
-    (setq primitive-func (alist-get method functions)
+    (setq internal-resource (or internal-resource resource)
+          primitive-func (alist-get method functions)
           post-process-func (alist-get 'post-process functions)
+          pre-process-params-func (alist-get 'pre-process-params functions)
           link-func (alist-get 'link functions))
 
     ;; If our functions are already functions (and not quoted), we'll
@@ -262,15 +263,23 @@ configured.")
       (setq primitive-func `(function ,primitive-func)))
     (when (functionp post-process-func)
       (setq post-process-func `(function ,post-process-func)))
+    (when (functionp pre-process-params-func)
+      (setq pre-process-params-func `(function ,pre-process-params-func)))
     (unless (functionp link-func)
       (setq link-func (eval link-func)))
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource (apiwrap-resolve-api-params object internal-resource)
-          form `(apply ,primitive-func ,resolved-resource
-                       (if (keywordp data)
-                           (list (apiwrap-plist->alist (cons data params)))
-                         (list (apiwrap-plist->alist params) data))))
+          form
+          (if pre-process-params-func
+              `(apply ,primitive-func ,resolved-resource
+                      (if (keywordp data)
+                          (list (funcall ,pre-process-params-func (apiwrap-plist->alist (cons data params))))
+                        (list (funcall ,pre-process-params-func (apiwrap-plist->alist params)) data)))
+            `(apply ,primitive-func ,resolved-resource
+                    (if (keywordp data)
+                        (list (apiwrap-plist->alist (cons data params)))
+                      (list (apiwrap-plist->alist params) data)))))
 
     (when post-process-func
       (setq form `(funcall ,post-process-func ,form)))
@@ -352,7 +361,17 @@ macros.
 
         Function to process the responses of the API before
         returning.
-"
+
+        The default is `identity'.
+
+    :pre-process-params
+
+        Function to pre-process arguments passed as the
+        parameters to the generated wrappers.  The function is
+        passed an alist based on the plist of keyword arguments
+        given to the wrapper function and should return an alist
+
+        The default is `identity'."
   (let ((sname (cl-gensym)) (sprefix (cl-gensym))
         (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
     `(let ((,sname ,name)

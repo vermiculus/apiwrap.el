@@ -56,10 +56,11 @@ parameters, but take away these highlights:
 
 Note that by wrapping this one call in ~eval-when-compile~, I ensure
 that the byte code won't include definitions for the macros it
-generates.  Once you use =API-Wrap.el= to compile your code, you don't
-need to generate the macros again!  However, you /do/ still need to load
-it in application code to use support functions that have to evaluate
-at runtime (like ~apiwrap-plist->alist~).
+generates (and in fact, you /must/ use this to compile your file).  Once
+you use =API-Wrap.el= to compile your code, you don't need to generate
+the macros again!  However, you /do/ still need to load it in
+application code to use support functions that have to evaluate at
+runtime (like ~apiwrap-plist->alist~).
 
 * Using the Generated Macros
 After evaluating the above call to ~apiwrap-new-backend~, you will have six
@@ -154,6 +155,22 @@ function:
 #+END_SRC
 I would then use =my-github-wrapper--primitive-get= in my prior call to
 =apiwrap-new-backend=.
+
+A better approach, however, is to use =:pre-process-params= for this
+common case.  Like the other configuration options, you can use it in
+either the ~apiwrap-new-backend~ macro or any of the ~defapi*~ macros:
+#+BEGIN_SRC elisp
+  (defapiget-my-github-wrapper "/issues"
+    "List all issues assigned to the authenticated user across all
+  visible repositories including owned repositories, member
+  repositories, and organization repositories."
+    3 "issues/#list-issues"
+    :pre-process-params #'my-github-wrapper--preprocess-params)
+#+END_SRC
+Now, we can safely say
+#+BEGIN_SRC elisp
+  (my-github-wrapper-get-issues :state 'closed)
+#+END_SRC
 
 *** A complex use-case
 Of course, many method calls accept 'interpolated' parameters
