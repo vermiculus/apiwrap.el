@@ -332,13 +332,14 @@ macros.
 
     :link
 
-        Function to process an alist and return a link.  Should
-        take an alist as its sole parameter and return a
-        fully-qualified URL to be considered the official
-        documentation of the API endpoint.  The default is
-        `apiwrap-stdgenlink'.
+        Function to process an alist and return a link.  This
+        function should take an alist as its sole parameter and
+        return a fully-qualified URL to be considered the
+        official documentation of the API endpoint.  The default
+        is `apiwrap-stdgenlink'.
 
-        The passed alist contains the following properties:
+        This function is passed an alist with the following
+        properties:
 
           endpoint  string  the documented endpoint being wrapped
           link      string  the link passed as documentation
