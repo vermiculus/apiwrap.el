@@ -98,7 +98,7 @@ symbol `keyword'."
       (intern (substring (symbol-name kw) 1))
     kw))
 
-(defun apiwrap--docfn (doc object-param-doc method external-resource link)
+(defun apiwrap--docfn (service-name doc object-param-doc method external-resource link)
   "Documentation string for resource-wrapping functions created
 by `apiwrap--defresource'"
   (format "%s
@@ -110,7 +110,7 @@ PARAMS is a plist of parameters appended to the method call.
 
 %s
 
-This generated function wraps
+This generated function wraps the %s API endpoint
 
     %s %s
 
@@ -121,6 +121,7 @@ which is documented at
                        (concat object-param-doc "\n\n"))
                   "")
           (make-string 20 ?-)
+          service-name
           (upcase (symbol-name method))
           external-resource link))
 
