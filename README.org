@@ -18,7 +18,7 @@ application development.
 
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
-    3 "https://developer.github.com/v3/issues/#list-issues-for-a-repository"
+    "https://developer.github.com/v3/issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues")
 
   ;; Check the docstring of this new function!
@@ -60,8 +60,7 @@ wrappers to use in my application code.  To do this, I'll use
       :get #'ghub-get :put #'ghub-put :head #'ghub-head
       :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
       :link (lambda (props)
-              (format "https://developer.github.com/v%d/%s"
-                      (alist-get 'version props)
+              (format "https://developer.github.com/v3/%s"
                       (alist-get 'link props)))))
 #+END_SRC
 Refer to the macro's docstring for full a full description of the
@@ -110,13 +109,12 @@ Here is the definition of ~my-github-wrapper-get-issues~:
     "List all issues assigned to the authenticated user across all
   visible repositories including owned repositories, member
   repositories, and organization repositories."
-    3 "issues/#list-issues")
+    "issues/#list-issues")
 #+END_SRC
 If we refer to the documentation of ~defapiget-my-github-wrapper~, we'll
 see that =/issues= is the method call as written in the linked GitHub
 API documentation ([[https://developer.github.com/v3/issues/#list-issues][reference]]).  A brief docstring is provided (here
-copied from the API) as well as the API version this resource
-corresponds to.
+copied from the API).
 
 If we now inspect the documentation of ~my-github-wrapper-get-issues~,
 we'll see all of our information included in the docstring:
@@ -136,15 +134,13 @@ we'll see all of our information included in the docstring:
 
   --------------------
 
-  This generated function wraps
+  This generated function wraps the GitHub API endpoint
 
       GET /issues
 
   which is documented at
 
       URL ‘https://developer.github.com/v3/issues/#list-issues’
-
-  [back]
 #+END_EXAMPLE
 In addition to the documentation we provided, the =DATA= and =PARAMS=
 parameters have been added to the function and appropriately
@@ -192,7 +188,7 @@ either the ~apiwrap-new-backend~ macro or any of the ~defapi*~ macros:
     "List all issues assigned to the authenticated user across all
   visible repositories including owned repositories, member
   repositories, and organization repositories."
-    3 "issues/#list-issues"
+    "issues/#list-issues"
     :pre-process-params #'my-github-wrapper--preprocess-params)
 #+END_SRC
 Now, we can safely say
@@ -210,7 +206,7 @@ Consider the definition of
 #+BEGIN_SRC elisp
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
-    3 "issues/#list-issues-for-a-repository"
+    "issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues")
 #+END_SRC
 We've provided two extra parameters: =repo= and the string
@@ -261,7 +257,7 @@ return-value ~ghub-get~:
 #+BEGIN_SRC elisp
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
-    3 "issues/#list-issues-for-a-repository"
+    "issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues"
     :post-process remove-api-links)
 #+END_SRC
@@ -271,7 +267,7 @@ it out:
 #+BEGIN_SRC elisp
   (defapiget-my-github-wrapper "/user"
     "Return the currently authenticated user"
-    3 "users/#get-the-authenticated-user"
+    "users/#get-the-authenticated-user"
     :post-process remove-api-links)
 #+END_SRC
 
@@ -280,18 +276,18 @@ response.  To specify this as the default, I'll just modify my
 ~api-new-backend~ form:
 #+BEGIN_SRC elisp
   (apiwrap-new-backend "GitHub" "my-github-wrapper"
-    ((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
-     (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
-    (lambda (version link) (format "https://developer.github.com/v%d/%s" version link))
-    ghub-get ghub-put ghub-head ghub-post ghub-patch ghub-delete
-    :post-process remove-api-links)
+    '((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
+      (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
+    :get #'ghub-get :put #'ghub-put :head #'ghub-head
+    :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
+    :post-process #'remove-api-links)
 #+END_SRC
 If I later have a wrapper that shouldn't post-process anything, I can
 provide an explicit =nil= value in the ~def-*~ macro's arguments:
 #+BEGIN_SRC elisp
   (defapiget-my-github-wrapper "/user"
     "Return the currently authenticated user"
-    3 "users/#get-the-authenticated-user"
+    "users/#get-the-authenticated-user"
     :post-process nil)
 #+END_SRC
 

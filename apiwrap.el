@@ -138,8 +138,6 @@ used to create the symbol for the new function.
 DOC is a specific documentation string for the new function.
 Usually, this can be copied from the %s API documentation.
 
-VERSION is the %s API version this resource is from.
-
 LINK is a link to the %s API documentation.
 
 If non-nil, OBJECT is a symbol that will be used to resolve
@@ -154,13 +152,13 @@ useful in the likely event that the advertised resource syntax
 does not align with the structure of the object it works with.
 For example, GitHub's endpoint
 
-    GET /repos/:owner/:repo/issues resource
+    GET /repos/:owner/:repo/issues
 
 would be written as
 
-    \(prefix-defget \"/repos/:owner/:repo/issues\"
+    \(defapiget-<prefix> \"/repos/:owner/:repo/issues\"
       \"List issues for a repository.\"
-      3 \"issues/#list-issues-for-a-repository\"
+      \"issues/#list-issues-for-a-repository\"
       repo \"/repos/:owner.login/:name/issues\"\)
 
 defining a function called `<prefix>-get-repos-owner-repo-issues'
@@ -178,7 +176,7 @@ precedence over the defaults provided to `apiwrap-new-backend'."
          (upcase (symbol-name method))
          service-name
          (upcase (symbol-name method))
-         (make-list 3 service-name)))
+         (make-list 2 service-name)))
 
 (defun apiwrap-genfunsym (prefix api-method &optional resource)
   "Generate a symbol for a macro/function."
@@ -219,18 +217,18 @@ configured.")
   (let (super-form)
     (dolist (primitive (reverse apiwrap-primitives))
       (let ((macrosym (apiwrap-genfunsym prefix primitive)))
-        (push `(defmacro ,macrosym (resource doc version link
+        (push `(defmacro ,macrosym (resource doc link
                                              &optional object internal-resource
                                              &rest functions)
                  ,(apiwrap--docmacro name (apiwrap--kw->sym primitive))
                  (declare (indent defun) (doc-string 2))
                  (apiwrap-gendefun ,name ,prefix ',standard-parameters ',primitive
-                                   resource doc version link object internal-resource
+                                   resource doc link object internal-resource
                                    (append functions ',functions)))
               super-form)))
     super-form))
 
-(defun apiwrap-gendefun (name prefix standard-parameters method resource doc version link object internal-resource functions)
+(defun apiwrap-gendefun (name prefix standard-parameters method resource doc link object internal-resource functions)
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-genfunsym prefix method resource))
@@ -285,7 +283,6 @@ configured.")
       (setq form `(funcall ,post-process-func ,form)))
 
     (let ((props `((prefix   . ,prefix)
-                   (version  . ,version)
                    (method   . ',method)
                    (endpoint . ,resource)
                    (link     . ,link)))
@@ -316,11 +313,6 @@ be used to resolve resource URLs like `/users/:user/info'.  Each
 key of the alist is the parameter name (as a symbol) and its
 value is the documentation to insert in the docstring of
 resource-wrapping functions.
-
-LINK-FUNC is a function to generate documentation URLs.  It takes
-a version (number) and a link (string) and returns a fully
-qualified URL that links to the official documentation of the
-resource.
 
 FUNCTIONS is a list of arguments to configure the generated
 macros.
@@ -353,7 +345,6 @@ macros.
           link      string  the link passed as documentation
           method    symbol  one of `get', `put', etc.
           prefix    string  the prefix used to generate wrappers
-          version   number  the API version used
 
         The default is `apiwrap-stdgenlink'.
 
