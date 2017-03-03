@@ -335,8 +335,7 @@ macros.
         Function to process an alist and return a link.  This
         function should take an alist as its sole parameter and
         return a fully-qualified URL to be considered the
-        official documentation of the API endpoint.  The default
-        is `apiwrap-stdgenlink'.
+        official documentation of the API endpoint.
 
         This function is passed an alist with the following
         properties:
@@ -346,6 +345,8 @@ macros.
           method    symbol  one of `get', `put', etc.
           prefix    string  the prefix used to generate wrappers
           version   number  the API version used
+
+        The default is `apiwrap-stdgenlink'.
 
     :post-process
 
