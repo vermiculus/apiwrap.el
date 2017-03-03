@@ -54,13 +54,16 @@ parameters, but take away these highlights:
 - we provide a means to generate full documentation links based on
   subsequent macro arguments
 
-Note that by wrapping this one call in ~eval-when-compile~, I ensure
-that the byte code won't include definitions for the macros it
-generates (and in fact, you /must/ use this to compile your file).  Once
-you use =API-Wrap.el= to compile your code, you don't need to generate
-the macros again!  However, you /do/ still need to load it in
-application code to use support functions that have to evaluate at
-runtime (like ~apiwrap-plist->alist~).
+Note that I must wrap this one call in ~eval-when-compile~ so that
+=my-github-wrapper.el= will compile.  If I don't ever need it to
+compile, I don't need this call.  When I do compile, though, I can
+rest easy knowing that the macros do not make it into the byte-code --
+only the actual, generated wrapper functions do.  The macros are only
+generated once!
+
+This /doesn't/ mean I don't have to ~(require 'apiwrap)~ every time,
+though; application code will rely on support functions that evaluate
+at runtime (like ~apiwrap-plist->alist~).
 
 * Using the Generated Macros
 After evaluating the above call to ~apiwrap-new-backend~, you will have six
