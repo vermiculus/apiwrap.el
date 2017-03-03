@@ -34,12 +34,10 @@ wrappers to use in my application code.  To do this, I'll use
        (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
       :get #'ghub-get :put #'ghub-put :head #'ghub-head
       :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
-      :link (lambda (symbol)
-              (let* ((spl (symbol-plist symbol))
-                     (version (plist-get spl 'apiwrap-version))
-                     (link (plist-get spl 'apiwrap-documentation)))
-                (format "https://developer.github.com/v%d/%s"
-                        version link)))))
+      :link (lambda (props)
+              (format "https://developer.github.com/v%d/%s"
+                      (alist-get 'version props)
+                      (alist-get 'link props)))))
 #+END_SRC
 Refer to the macro's docstring for full a full description of the
 parameters, but take away these highlights:

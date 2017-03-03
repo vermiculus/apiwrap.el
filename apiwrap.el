@@ -191,10 +191,9 @@ precedence over the defaults provided to `apiwrap-new-backend'."
                   (replace-regexp-in-string "/" "-" resource)))
        (format "defapi%s-%s" api-method prefix)))))
 
-(defun apiwrap-stdgenlink (sym)
-  "Standard link generation function.
-Returns the `api-documentation' property of SYM."
-  (plist-get (symbol-plist sym) 'apiwrap-documentation))
+(defun apiwrap-stdgenlink (alist)
+  "Standard link generation function."
+  (alist-get 'link alist))
 
 (defconst apiwrap-primitives
   '(get put head post patch delete)
@@ -217,10 +216,8 @@ configured.")
           (byte-compile-warn "Unknown function for `%S': %S" key fn)))))
 
   ;; Build the macros
-  (let (super-form macro-form primitive-func)
+  (let (super-form)
     (dolist (primitive (reverse apiwrap-primitives))
-      (setq macro-form nil
-            primitive-func (alist-get primitive functions))
       (let ((macrosym (apiwrap-genfunsym prefix primitive)))
         (push `(defmacro ,macrosym (resource doc version link
                                              &optional object internal-resource
@@ -265,8 +262,8 @@ configured.")
       (setq primitive-func `(function ,primitive-func)))
     (when (functionp post-process-func)
       (setq post-process-func `(function ,post-process-func)))
-    (when (functionp link-func)
-      (setq link-func `(function ,link-func)))
+    (unless (functionp link-func)
+      (setq link-func (eval link-func)))
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource (apiwrap-resolve-api-params object internal-resource)
@@ -278,15 +275,23 @@ configured.")
     (when post-process-func
       (setq form `(funcall ,post-process-func ,form)))
 
-    `(prog1 (defun ,funsym ,args ,form)
-       (put ',funsym 'apiwrap-prefix        ,prefix)
-       (put ',funsym 'apiwrap-version       ,version)
-       (put ',funsym 'apiwrap-method       ',method)
-       (put ',funsym 'apiwrap-endpoint      ,resource)
-       (put ',funsym 'apiwrap-documentation ,link)
-       (put ',funsym 'function-documentation
-            (apiwrap--docfn ,doc ,(alist-get object standard-parameters) ',method ,resource
-                            (funcall ,(alist-get 'link functions) ',funsym))))))
+    (let ((props `((prefix   . ,prefix)
+                   (version  . ,version)
+                   (method   . ',method)
+                   (endpoint . ,resource)
+                   (link     . ,link)))
+          fn-form)
+      (dolist (p props)
+        (push `(put ',funsym
+                    ',(intern (concat "apiwrap-" (symbol-name (car p))))
+                    ,(cdr p))
+              fn-form))
+      (push `(defun ,funsym ,args
+               ,(apiwrap--docfn name doc (alist-get object standard-parameters) method resource
+                                (funcall link-func props))
+               ,form)
+            fn-form)
+      (cons 'prog1 fn-form))))
 
 (defmacro apiwrap-new-backend (name prefix standard-parameters &rest functions)
   "Define a new API backend.
@@ -327,11 +332,19 @@ macros.
 
     :link
 
-        Function to process a symbol and return a link.  Should
-        take a symbol as its sole parameter and return a
+        Function to process an alist and return a link.  Should
+        take an alist as its sole parameter and return a
         fully-qualified URL to be considered the official
         documentation of the API endpoint.  The default is to
         return the raw LINK passed to `defapi<method>-<prefix>'.
+
+        The passed alist contains the following properties:
+
+          endpoint  string  the documented endpoint being wrapped
+          link      string  the link passed as documentation
+          method    symbol  one of `get', `put', etc.
+          prefix    string  the prefix used to generate wrappers
+          version   number  the API version used
 
     :post-process
 
