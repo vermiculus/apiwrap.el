@@ -5,17 +5,42 @@ services.  These macros make it easy to define efficient and
 consistently-documented Elisp functions that use a natural syntax for
 application development.
 
-Now, =API-Wrap.el= can't do /all/ of the work for you; you will have to
-supply your own primitive functions that can query the API and return
-the processed response, but these are expected to be the absolute
+*** Lightning Tour
+#+BEGIN_SRC elisp
+  (require 'apiwrap)
+  (require 'ghub)   ; backend for API primitives -- https://github.com/tarsius/ghub
+  ; typical backend is <150 lines
+
+  (apiwrap-new-backend "GitHub" "my-github-wrapper"
+    '((repo . "REPO is a repository alist of the form returned by `/user/repos'."))
+    :get #'ghub-get :put #'ghub-put :head #'ghub-head
+    :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete)
+
+  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
+    "List issues for a repository."
+    3 "https://developer.github.com/v3/issues/#list-issues-for-a-repository"
+    repo "/repos/:owner.login/:name/issues")
+
+  ;; Check the docstring of this new function!
+  (my-github-wrapper-get-repos-owner-repo-issues
+   '((owner (login . "tarsius"))
+     (name . "ghub")))
+  ;; => parsed response of GET /repos/tarsius/ghub/issues
+#+END_SRC
+
+*** API Primitives
+=API-Wrap.el= can't do /all/ of the work for you; you will have to supply
+your own primitive functions that can query the API and return the
+processed response, but these are expected to be the absolute
 /bare-bones/.  For an example of what kinds of primitives =API-Wrap.el=
-expects, refer to the =ghub= [[https://github.com/tarsius/ghub][package]]'s definitions for its
+expects, refer to the =ghub= package's [[https://github.com/tarsius/ghub][definitions]] for its
 ~ghub-{get,put,head,post,patch,delete}~ functions.  In general, these
 functions are to be used as follows:
 #+BEGIN_SRC elisp
   (ghub-get "/repos/octocat/Hello-World/issues"
             '((state . "closed"))
             ;; optional DATA parameter omitted
+            ;; used for (e.g.) POST requests
             )
 #+END_SRC
 If you have a function like this, you should be good to go!  If you
