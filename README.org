@@ -13,7 +13,7 @@ application development.
 
   (apiwrap-new-backend "GitHub" "my-github-wrapper"
     '((repo . "REPO is a repository alist of the form returned by `/user/repos'."))
-    :get #'ghub-get :put #'ghub-put :head #'ghub-head
+    :get  #'ghub-get  :put   #'ghub-put   :head   #'ghub-head
     :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete)
 
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
@@ -57,7 +57,7 @@ wrappers to use in my application code.  To do this, I'll use
     (apiwrap-new-backend "GitHub" "my-github-wrapper"
       '((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
         (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
-      :get #'ghub-get :put #'ghub-put :head #'ghub-head
+      :get  #'ghub-get  :put   #'ghub-put   :head   #'ghub-head
       :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
       :link (lambda (props)
               (format "https://developer.github.com/v3/%s"
@@ -112,9 +112,9 @@ Here is the definition of ~my-github-wrapper-get-issues~:
     "issues/#list-issues")
 #+END_SRC
 If we refer to the documentation of ~defapiget-my-github-wrapper~, we'll
-see that =/issues= is the method call as written in the linked GitHub
-API documentation ([[https://developer.github.com/v3/issues/#list-issues][reference]]).  A brief docstring is provided (here
-copied from the API).
+see that =/issues= is the method call as written in [[https://developer.github.com/v3/issues/#list-issues][the linked GitHub
+API documentation]].  A brief docstring is provided, here copied from
+the API.
 
 If we now inspect the documentation of ~my-github-wrapper-get-issues~,
 we'll see all of our information included in the docstring:
@@ -127,10 +127,10 @@ we'll see all of our information included in the docstring:
   visible repositories including owned repositories, member
   repositories, and organization repositories.
 
-  PARAMS is a plist of parameters appended to the method call.
-
   DATA is a data structure to be sent with this request.  If it’s
   not required, it can simply be omitted.
+
+  PARAMS is a plist of parameters appended to the method call.
 
   --------------------
 
@@ -168,7 +168,7 @@ wanted to convert symbols to strings, I could write a new 'primitive'
 function:
 #+BEGIN_SRC elisp
   (defun my-github-wrapper--primitive-get (resource &optional params data)
-    (ghub-get resource (my-github-wrapper--preprocess-params) params data))
+    (ghub-get resource (my-github-wrapper--preprocess-params params) data))
 
   (defun my-github-wrapper--preprocess-params (alist)
     (mapcar (lambda (cell)
