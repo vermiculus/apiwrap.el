@@ -201,7 +201,8 @@ configured.")
 (defun apiwrap-genmacros (name prefix standard-parameters functions)
   "Validate arguments and generate all macro forms"
   ;; Default to raw link entered in the macro
-  (cl-pushnew '(link . #'apiwrap-stdgenlink) functions)
+  (unless (alist-get 'link functions)
+    (add-to-list 'functions '(link . apiwrap-stdgenlink) t))
 
   ;; Verify all extension functions are actually functions
   (dolist (f functions)
