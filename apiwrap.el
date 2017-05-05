@@ -225,27 +225,29 @@ configured.")
                  (declare (indent defun) (doc-string 2))
                  (apiwrap-gendefun ,name ,prefix ',standard-parameters ',primitive
                                    resource doc link object internal-resource
-                                   (append functions ',functions)))
+                                   ',functions functions))
               super-form)))
     super-form))
 
-(defun apiwrap-gendefun (name prefix standard-parameters method resource doc link object internal-resource functions)
+(defun apiwrap-gendefun (name prefix standard-parameters method resource doc link object internal-resource std-functions override-functions)
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-genfunsym prefix method resource))
-        resolved-resource form
+        resolved-resource form functions
         primitive-func link-func post-process-func pre-process-params-func)
 
     ;; Be smart about when configuration starts.  Neither `object' nor
     ;; `internal-resource' can be keywords, so we know that if they
     ;; are, then we need to shift things around.
     (when (keywordp object)
-      (push internal-resource functions)
-      (push object functions)
+      (push internal-resource override-functions)
+      (push object override-functions)
       (setq object nil internal-resource nil))
     (when (keywordp internal-resource)
-      (push internal-resource functions)
+      (push internal-resource override-functions)
       (setq internal-resource nil))
+    (setq functions (append (apiwrap-plist->alist override-functions)
+                            std-functions))
 
     ;; Now that our arguments have settled, let's use them
     (when object (push object args))
