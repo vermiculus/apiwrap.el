@@ -230,7 +230,7 @@ configured.")
   "Validate arguments and generate all macro forms"
   ;; Default to raw link entered in the macro
   (unless (alist-get 'link functions)
-    (add-to-list 'functions '(link . apiwrap-stdgenlink) t))
+    (setcdr (last functions) (list '(link . apiwrap-stdgenlink))))
 
   ;; Verify all extension functions are actually functions
   (dolist (f functions)
