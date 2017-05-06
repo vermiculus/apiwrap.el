@@ -1,4 +1,4 @@
-;;; apiwrap.el --- api-wrapping tools      -*- lexical-binding: t; -*-
+;;; apiwrap.el --- api-wrapping macros     -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2017  Sean Allred
 
