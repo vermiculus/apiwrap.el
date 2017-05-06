@@ -105,7 +105,24 @@ symbol `keyword'."
 
 (defun apiwrap--docfn (service-name doc object-param-doc method external-resource link)
   "Documentation string for resource-wrapping functions created
-by `apiwrap--defresource'"
+by `apiwrap--defresource'.
+
+SERVICE-NAME is the name of the API being wrapped (e.g., \"ghub\")
+
+DOC is the documentation string for this endpoint.
+
+OBJECT-PARAM-DOC is a string describing the standard parameters
+this endpoint requires (usually provided by
+`apiwrap-new-backend').  If it's not a string, nothing will be
+inserted into the documentation string.
+
+METHOD is one of `get', `post', etc.
+
+EXTERNAL-RESOURCE is the API endpoint as documented in the API.
+It does not usually include any syntax for reference-resolution.
+
+LINK is a link to the official documentation for this API
+endpoint from the service provider."
   (format "%s
 
 %sDATA is a data structure to be sent with this request.  If it's
@@ -122,9 +139,10 @@ This generated function wraps the %s API endpoint
 which is documented at
 
     URL `%s'"
-          doc (or (and (stringp object-param-doc)
-                       (concat object-param-doc "\n\n"))
-                  "")
+          doc
+          (or (and (stringp object-param-doc)
+                   (concat object-param-doc "\n\n"))
+              "")
           (make-string 20 ?-)
           service-name
           (upcase (symbol-name method))
@@ -132,7 +150,11 @@ which is documented at
 
 (defun apiwrap--docmacro (service-name method)
   "Documentation string for macros created by
-`apiwrap-new-backend'"
+`apiwrap-new-backend'
+
+SERVICE-NAME is the name of the API being wrapped (e.g., \"ghub\")
+
+METHOD is one of `get', `post', etc."
   (apply #'format "Define a new %s resource wrapper function.
 
 RESOURCE is the API endpoint as written in the %s API
@@ -167,7 +189,8 @@ would be written as
       repo \"/repos/:owner.login/:name/issues\"\)
 
 defining a function called `<prefix>-get-repos-owner-repo-issues'
-and taking an object with the structure
+and taking an object (a parameter called `repo') with the
+structure
 
     \(\(owner \(login . \"octocat\"\)\)
      \(name . \"hello-world\"\)
