@@ -19,7 +19,7 @@ application development.
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
     "https://developer.github.com/v3/issues/#list-issues-for-a-repository"
-    repo "/repos/:owner.login/:name/issues")
+    (repo) "/repos/:repo.owner.login/:repo.name/issues")
 
   ;; Check the docstring of this new function!
   (my-github-wrapper-get-repos-owner-repo-issues
@@ -207,24 +207,63 @@ Consider the definition of
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
     "issues/#list-issues-for-a-repository"
-    repo "/repos/:owner.login/:name/issues")
+    (repo) "/repos/:repo.owner.login/:repo.name/issues")
 #+END_SRC
 We've provided two extra parameters: =repo= and the string
-=/repos/:owner.login/:name/issues=. Since ~defapiget-my-github-wrapper~ is
-a macro, =repo= is a just a symbol that will be used in the argument
-list of the generated function (and inserted into its docstring
-according to ~my-github-wrapper--standard-parameters~).
+=/repos/:repo.owner.login/:repo.name/issues=. Since
+~defapiget-my-github-wrapper~ is a macro, =repo= is a just a symbol that
+will be used in the argument list of the generated function (and
+inserted into its docstring according to
+~my-github-wrapper--standard-parameters~).
 
 This second string is where things get interesting.  This argument
 overrides the first, as-advertised method call for a very specific
 purpose: when our new function is used, this string is evaluated in
 the context of our =repo= object using syntax akin to ~let-alist~:
 #+BEGIN_SRC elisp
-  ;; repo "/repos/:owner.login/:name/issues"
+  ;; repo "/repos/:repo.owner.login/:repo.name/issues"
   (my-github-wrapper-get-repos-owner-repo-issues
    '((owner (login . "vermiculus"))
-     (name . "ghub-plus")))
-  ;; calls GET /repos/vermiculus/ghub-plus/issues
+     (name . "apiwrap.el")))
+  ;; calls GET /repos/vermiculus/apiwrap.el/issues
+#+END_SRC
+
+*** COMMENT Multiple required parameters
+You may have noticed that you provided the =repo= symbol above in a
+/list/.  You can have as many symbols as you want in this list; they
+will all be evaluated in the string described above:
+#+BEGIN_SRC elisp
+  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues/:number/comments"
+    "List comments on an issue."
+    "issues/comments/#list-comments-on-an-issue"
+    (repo issue) "/repos/:repo.owner.login/:repo.name/issues/:issue.number/comments")
+#+END_SRC
+Each =:object= is considered for evaluation:
+#+BEGIN_SRC elisp
+  ;; repo issue "/repos/:repo.owner.login/:repo.name/issues/:issue.number/comments"
+  (my-github-wrapper-get-repos-owner-repo-issues-number-comments
+   '((owner (login . "vermiculus"))
+     (name . "apiwrap.el"))
+   '((number . 1)))
+  ;; calls GET /repos/vermiculus/apiwrap.el/issues/1/comments
+#+END_SRC
+
+It's recommended that you treat each interpolated parameter as a full
+object.  For example, I could've defined the above as
+#+BEGIN_SRC elisp
+  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues/:number/comments"
+    "List comments on an issue."
+    "issues/comments/#list-comments-on-an-issue"
+    (repo number) "/repos/:repo.owner.login/:repo.name/issues/:number/comments")
+#+END_SRC
+but I would not be able to pass an issue object into the function
+without first getting its number out of the object.  If desired,
+convenience functions can easily be written to create the sparse
+object necessary to complete the API call:
+#+BEGIN_SRC elisp
+  (defun my-github-wrapper-issue-get-comments (repo issue-number)
+    (my-github-wrapper-get-repos-owner-repo-issues-number-comments
+     repo `((number . ,issue-number))))
 #+END_SRC
 
 ** Other configuration
@@ -258,7 +297,7 @@ return-value ~ghub-get~:
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
     "issues/#list-issues-for-a-repository"
-    repo "/repos/:owner.login/:name/issues"
+    (repo) "/repos/:repo.owner.login/:repo.name/issues"
     :post-process #'remove-api-links)
 #+END_SRC
 For wrappers that don't take any arguments, I don't need to worry

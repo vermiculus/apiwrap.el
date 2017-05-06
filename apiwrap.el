@@ -167,11 +167,11 @@ Usually, this can be copied from the %s API documentation.
 
 LINK is a link to the %s API documentation.
 
-If non-nil, OBJECT is a symbol that will be used to resolve
-parameters in the resource and will be a required argument of the
-new function.  Its documentation (from the standard parameters of
-the call to `apiwrap-new-backend') will be inserted into the
-docstring of the generated function.
+If non-nil, OBJECTS is a list of symbols that will be used to
+resolve parameters in the resource and will be required arguments
+of the new function.  Documentation for these parameters (from
+the standard parameters of the call to `apiwrap-new-backend')
+will be inserted into the docstring of the generated function.
 
 If non-nil, INTERNAL-RESOURCE is the resource-string used to
 resolve OBJECT to the ultimate call instead of RESOURCE.  This is
@@ -186,7 +186,7 @@ would be written as
     \(defapiget-<prefix> \"/repos/:owner/:repo/issues\"
       \"List issues for a repository.\"
       \"issues/#list-issues-for-a-repository\"
-      repo \"/repos/:owner.login/:name/issues\"\)
+      (repo) \"/repos/:repo.owner.login/:repo.name/issues\"\)
 
 defining a function called `<prefix>-get-repos-owner-repo-issues'
 and taking an object (a parameter called `repo') with the
@@ -247,30 +247,30 @@ configured.")
     (dolist (primitive (reverse apiwrap-primitives))
       (let ((macrosym (apiwrap-genfunsym prefix primitive)))
         (push `(defmacro ,macrosym (resource doc link
-                                             &optional object internal-resource
+                                             &optional objects internal-resource
                                              &rest functions)
                  ,(apiwrap--docmacro name (apiwrap--kw->sym primitive))
                  (declare (indent defun) (doc-string 2))
                  (apiwrap-gendefun ,name ,prefix ',standard-parameters ',primitive
-                                   resource doc link object internal-resource
+                                   resource doc link objects internal-resource
                                    ',functions functions))
               super-form)))
     super-form))
 
-(defun apiwrap-gendefun (name prefix standard-parameters method resource doc link object internal-resource std-functions override-functions)
+(defun apiwrap-gendefun (name prefix standard-parameters method resource doc link objects internal-resource std-functions override-functions)
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-genfunsym prefix method resource))
         resolved-resource form functions
         primitive-func link-func post-process-func pre-process-params-func)
 
-    ;; Be smart about when configuration starts.  Neither `object' nor
+    ;; Be smart about when configuration starts.  Neither `objects' nor
     ;; `internal-resource' can be keywords, so we know that if they
     ;; are, then we need to shift things around.
-    (when (keywordp object)
+    (when (keywordp objects)
       (push internal-resource override-functions)
-      (push object override-functions)
-      (setq object nil internal-resource nil))
+      (push objects override-functions)
+      (setq objects nil internal-resource nil))
     (when (keywordp internal-resource)
       (push internal-resource override-functions)
       (setq internal-resource nil))
@@ -278,7 +278,7 @@ configured.")
                             std-functions))
 
     ;; Now that our arguments have settled, let's use them
-    (when object (push object args))
+    (when objects (setq args (append objects args)))
 
     (setq internal-resource (or internal-resource resource)
           primitive-func (alist-get method functions)
@@ -298,7 +298,9 @@ configured.")
       (setq link-func (eval link-func)))
 
     ;; Alright, we're ready to build our function
-    (setq resolved-resource (apiwrap-resolve-api-params object internal-resource)
+    (setq resolved-resource (apiwrap-resolve-api-params
+                                `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
+                              internal-resource)
           form
           (if pre-process-params-func
               `(apply ,primitive-func ,resolved-resource
@@ -324,7 +326,7 @@ configured.")
                     ,(cdr p))
               fn-form))
       (push `(defun ,funsym ,args
-               ,(apiwrap--docfn name doc (alist-get object standard-parameters) method resource
+               ,(apiwrap--docfn name doc (alist-get objects standard-parameters) method resource
                                 (funcall link-func props))
                ,form)
             fn-form)
