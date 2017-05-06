@@ -259,7 +259,7 @@ return-value ~ghub-get~:
     "List issues for a repository."
     "issues/#list-issues-for-a-repository"
     repo "/repos/:owner.login/:name/issues"
-    :post-process remove-api-links)
+    :post-process #'remove-api-links)
 #+END_SRC
 For wrappers that don't take any arguments, I don't need to worry
 about providing explicit =nil= values; ~def-*~ is smart enough to figure
@@ -268,7 +268,7 @@ it out:
   (defapiget-my-github-wrapper "/user"
     "Return the currently authenticated user"
     "users/#get-the-authenticated-user"
-    :post-process remove-api-links)
+    :post-process #'remove-api-links)
 #+END_SRC
 
 In this case, though, I /always/ want to remove the API links from the
