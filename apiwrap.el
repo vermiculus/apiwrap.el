@@ -63,7 +63,7 @@ Example:
            (while (search-forward ":" nil t)
              (goto-char (1- (point)))
              (insert "\" ")
-             (unless noencode (insert "(url-encode-url "))
+             (unless noencode (insert "(apiwrap--encode-url "))
              (insert ".")
              (setq in-string nil)
              (delete-char 1)
@@ -77,6 +77,11 @@ Example:
              (unless noencode (insert ")")))
            (insert ")")
            (delete "" (read (buffer-string))))))))
+
+(defun apiwrap--encode-url (thing)
+  (if (numberp thing)
+      (number-to-string thing)
+    (url-encode-url thing)))
 
 (defun apiwrap-plist->alist (plist)
   "Convert PLIST to an alist.
