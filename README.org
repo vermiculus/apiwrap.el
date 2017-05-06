@@ -78,12 +78,12 @@ parameters, but take away these highlights:
 - we provide a means to generate full documentation links based on
   subsequent macro arguments
 
-Note that I must wrap this one call in ~eval-when-compile~ so that
-=my-github-wrapper.el= will compile.  If I don't ever need it to
-compile, I don't need this call.  When I do compile, though, I can
-rest easy knowing that the macros do not make it into the byte-code --
-only the actual, generated wrapper functions do.  The macros are only
-generated once!
+Note that I must wrap this call (and all function definitions beyond
+the primitives) in ~eval-when-compile~ so that =my-github-wrapper.el= will
+compile.  If I don't ever need it to compile, I don't need this call.
+When I do compile, though, I can rest easy knowing that the macros do
+not make it into the byte-code -- only the actual, generated wrapper
+functions do.  The macros are only generated once!
 
 This /doesn't/ mean I don't have to ~(require 'apiwrap)~ every time,
 though; application code will rely on support functions that evaluate

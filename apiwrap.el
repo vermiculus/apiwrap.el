@@ -294,8 +294,6 @@ configured.")
       (setq post-process-func `(function ,post-process-func)))
     (when (functionp pre-process-params-func)
       (setq pre-process-params-func `(function ,pre-process-params-func)))
-    (unless (functionp link-func)
-      (setq link-func (eval link-func)))
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource (apiwrap-resolve-api-params
