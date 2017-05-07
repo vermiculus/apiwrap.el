@@ -318,11 +318,7 @@ configured.")
                    (endpoint . ,resource)
                    (link     . ,link)))
           fn-form)
-      (dolist (p props)
-        (push `(put ',funsym
-                    ',(intern (concat "apiwrap-" (symbol-name (car p))))
-                    ,(cdr p))
-              fn-form))
+      (push `(put ',funsym 'apiwrap ',props) fn-form)
       (push `(defun ,funsym ,args
                ,(apiwrap--docfn name doc (alist-get objects standard-parameters) method resource
                                 (funcall link-func props))
