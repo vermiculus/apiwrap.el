@@ -1,45 +1,71 @@
 ;;; Example/test file
-
 (require 'apiwrap)
+(require 'cl-lib)
+(require 'dash)
 
-(defun apiwrap-test--gen-link (link-alist)
-  (format "https://developer.github.com/v3/%s"
-          (alist-get 'link link-alist)))
+(defun test-alists-equal-p (a b)
+  "Test if A and B are equal.
+If they're both alists, disregard key ordering."
+  (if (and (listp a)
+           (listp b)
+           (null (cdr (last a)))      ;is it a list?
+           (null (cdr (last b)))
+           (-all-p #'consp a)         ;is it an alist?
+           (-all-p #'consp b))
+      (and (--all-p (and (test-alists-equal-p (car (assoc it a)) (car (assoc it b)))
+                         (test-alists-equal-p (cdr (assoc it a)) (cdr (assoc it b))))
+                    (mapcar #'car a))
+           (--all-p (and (test-alists-equal-p (car (assoc it a)) (car (assoc it b)))
+                         (test-alists-equal-p (cdr (assoc it a)) (cdr (assoc it b))))
+                    (mapcar #'car b)))
+    (equal a b)))
 
-(apiwrap-new-backend "GitHub" "my-github-wrapper"
-                     '((repo . "REPO is a special object.")
-                       (issue . "ISSUE is a special object."))
-                     :get #'ghub-get :put #'ghub-put :head #'ghub-head
-                     :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
-                     :link #'apiwrap-test--gen-link)
+(defvar test-responses nil)
+(defun test-request (url &optional params data)
+  "Respond to each identical request identically."
+  (cdr
+   (let ((request `((url . ,url) (params . ,params) (data . ,data))))
+     (or (-find (lambda (c) (test-alists-equal-p request (car c)))
+                test-responses)
+         (car (push (cons request (cl-gensym)) test-responses))))))
+
+(eval-and-compile
+  (defalias 'test-get #'test-request)
+  (defalias 'test-put #'test-request)
+  (defalias 'test-head #'test-request)
+  (defalias 'test-post #'test-request)
+  (defalias 'test-patch #'test-request)
+  (defalias 'test-delete #'test-request)
+
+  (defun apiwrap-test--gen-link (link-alist)
+    (format "link: %s" (alist-get 'link link-alist)))
+
+  (apiwrap-new-backend "Test" "test"
+                       '((sym1 . "SYM1 is a special object.")
+                         (symbol-two . "SYMBOL-TWO is a special object."))
+                       :get #'test-get :put #'test-put :head #'test-head
+                       :post #'test-post :patch #'test-patch :delete #'test-delete
+                       :link #'apiwrap-test--gen-link))
 
 (ert-deftest apiwrap-macros ()
-  (should (equal 'my-github-wrapper-get-repos-owner-repo-issues
-                 (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
-                   "List issues for a repository."
-                   "issues/#list-issues-for-a-repository"
-                   (repo) "/repos/:repo.owner.login/:repo.name/issues")))
-
-  (should (equal 'my-github-wrapper-get-repos-owner-repo-issues-number
-                 (defapiget-my-github-wrapper "/repos/:owner/:repo/issues/:number"
-                   "List issues for a repository."
-                   "issues/#list-issues-for-a-repository"
-                   (repo issue) "/repos/:repo.owner.login/:repo.name/issues/:issue.number")))
-
-  (should (equal 'my-github-wrapper-get-repos-owner-repo-issues-number-comments
-                 (defapiget-my-github-wrapper "/repos/:owner/:repo/issues/:number/comments"
-                   "List comments on an issue."
-                   "issues/comments/#list-comments-on-an-issue"
-                   (repo issue) "/repos/:repo.owner.login/:repo.name/issues/:issue.number/comments"))))
+  (should (equal 'test-get-some-method
+                 (defapiget-test "/some/method" "Documentation" "link")))
+  (should (equal 'test-get-echo-one-arg
+                 (defapiget-test "/echo/:one/:arg"
+                   "Documentation" "link"
+                   (symbol-two) "/echo/:symbol-two.a/:symbol-two.b")))
+  (should (equal 'test-get-echo-two-args
+                 (defapiget-test "/echo/:two/:args"
+                   "Documentation" "link"
+                   (sym1 symbol-two) "/echo/:sym1.a/:symbol-two.b"))))
 
 (ert-deftest apiwrap-usage ()
-  (let* ((my-repo '((owner (login . "vermiculus"))
-                    (name . "apiwrap.el")))
-         (my-issue (my-github-wrapper-get-repos-owner-repo-issues-number my-repo '((number . 1))))
-         (all-issues (my-github-wrapper-get-repos-owner-repo-issues my-repo :state "all")))
-    (should (my-github-wrapper-get-repos-owner-repo-issues-number-comments my-repo my-issue))
-    (should (= (alist-get 'id my-issue)
-               (alist-get 'id (car all-issues))))))
+  (should (equal (test-get-some-method)
+                 (test-request "/some/method")))
+  (should (equal (test-get-echo-one-arg '((a . "value-for-a") (b . "value for b")))
+                 (test-get "/echo/value-for-a/value%20for%20b")))
+  (should (equal (test-get-some-method :arg-1 "1" :arg-2 "2")
+                 (test-get "/some/method" '((arg-1 . "1") (arg-2 . "2"))))))
 
 (ert-deftest apiwrap-resolve-params ()
   (let ((obj '((name . "Hello-World")
@@ -55,7 +81,7 @@
       (should (string= (cdr test) (eval (apiwrap-resolve-api-params 'obj (car test)))))))
   (should (string= (let ((obj '((name . "hello^world")
                                 (owner (login . "octo^cat")))))
-                     (eval (ghub-resolve-api-params 'obj "/:owner.login/:name")))
+                     (eval (apiwrap-resolve-api-params 'obj "/:owner.login/:name")))
                    "/octo%5Ecat/hello%5Eworld")))
 
 (ert-deftest apiwrap-plist-to-alist ()
