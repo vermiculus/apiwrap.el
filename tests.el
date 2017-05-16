@@ -40,3 +40,27 @@
     (should (my-github-wrapper-get-repos-owner-repo-issues-number-comments my-repo my-issue))
     (should (= (alist-get 'id my-issue)
                (alist-get 'id (car all-issues))))))
+
+(ert-deftest apiwrap-resolve-params ()
+  (let ((obj '((name . "Hello-World")
+               (owner (login . "octocat"))))
+        (tests '(("/repos/:owner.login/:name/issues" . "/repos/octocat/Hello-World/issues")
+                 ("/repos/:owner.login/:name" . "/repos/octocat/Hello-World")
+                 ("/:owner.login/:name/issues" . "/octocat/Hello-World/issues")
+                 ("/:owner.login/:name" . "/octocat/Hello-World")
+                 (":owner.login" . "octocat")
+                 ("/:owner.login" . "/octocat")
+                 ("/:owner.login/" . "/octocat/"))))
+    (dolist (test tests)
+      (should (string= (cdr test) (eval (apiwrap-resolve-api-params 'obj (car test)))))))
+  (should (string= (let ((obj '((name . "hello^world")
+                                (owner (login . "octo^cat")))))
+                     (eval (ghub-resolve-api-params 'obj "/:owner.login/:name")))
+                   "/octo%5Ecat/hello%5Eworld")))
+
+(ert-deftest apiwrap-plist-to-alist ()
+  (should
+   (null (cl-set-difference
+          (apiwrap-plist->alist '(:one two :three four))
+          '((one . two) (three . four))
+          :test #'equal))))
