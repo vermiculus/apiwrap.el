@@ -9,12 +9,15 @@ application development.
 #+BEGIN_SRC elisp
   (require 'apiwrap)
   (require 'ghub)   ; backend for API primitives -- https://github.com/tarsius/ghub
-  ; typical backend is <150 lines
+  ;; typical backend is <150 lines
+
+  (defun my-github-wrapper--request (method resource params data)
+    (ghub-request (upcase (symbol-name method))
+                  resource (apiwrap-plist->alist params) data))
 
   (apiwrap-new-backend "GitHub" "my-github-wrapper"
     '((repo . "REPO is a repository alist of the form returned by `/user/repos'."))
-    :get  #'ghub-get  :put   #'ghub-put   :head   #'ghub-head
-    :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete)
+    :request #'my-github-wrapper--request)
 
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
     "List issues for a repository."
@@ -28,23 +31,32 @@ application development.
   ;; => parsed response of GET /repos/tarsius/ghub/issues
 #+END_SRC
 
-*** API Primitives
+*** The API Primitive Request
 =API-Wrap.el= can't do /all/ of the work for you; you will have to supply
-your own primitive functions that can query the API and return the
-processed response, but these are expected to be the absolute
-/bare-bones/.  For an example of what kinds of primitives =API-Wrap.el=
-expects, refer to the =ghub= package's [[https://github.com/tarsius/ghub][definitions]] for its
-~ghub-{get,put,head,post,patch,delete}~ functions.  In general, these
-functions are to be used as follows:
+your own primitive request function that can query the API and return
+the processed response, but this is expected to be pretty /bare-bones/.
+Without duplicating the documentation of ~apiwrap-new-backend~, the
+macro expects a function like this:
 #+BEGIN_SRC elisp
-  (ghub-get "/repos/octocat/Hello-World/issues"
-            '((state . "closed"))
-            ;; optional DATA parameter omitted
-            ;; used for (e.g.) POST requests
-            )
+  (defun api-primitive (method resource params data)
+    "Using METHOD, use RESOURCE with PARAMS and DATA.
+  METHOD is a symbol -- one of `get', `put', `head', `post',
+  `patch', or `delete'.
+
+  RESOURCE is a string, like \"/users/20543/info\".
+
+  PARAMS is a plist of parameters to RESOURCE.
+
+  DATA is an alist of data for RESOURCE (e.g., for posting).")
 #+END_SRC
+
 If you have a function like this, you should be good to go!  If you
-don't, you can likely model your primitives on =ghub='s (tiny) codebase.
+don't, you can likely model your primitive on =ghub='s (tiny) codebase.
+
+It's not uncommon to need to write a wrapper!  =API-Wrap.el= is written
+to be as unassuming as possible.  For instance, ~ghub-request~ does not
+take the right kinds of parameters, but we can write a suitable
+wrapper as above in the lightning tour.
 
 * Defining API Backends
 Suppose I want to use =ghub='s primitives to define a bunch of resource
@@ -57,8 +69,7 @@ wrappers to use in my application code.  To do this, I'll use
     (apiwrap-new-backend "GitHub" "my-github-wrapper"
       '((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
         (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
-      :get  #'ghub-get  :put   #'ghub-put   :head   #'ghub-head
-      :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
+      :request #'my-github-wrapper--request
       :link (lambda (props)
               (format "https://developer.github.com/v3/%s"
                       (alist-get 'link props)))))
@@ -74,7 +85,7 @@ parameters, but take away these highlights:
   and are usually similarly structured objects
 - we provide a function to generate a link to the official API
   documentation from GitHub -- after all, these are just wrappers!
-- we provide primitive handlers for each HTTP verb
+- we provide a primitive handler to handle making the request
 - we provide a means to generate full documentation links based on
   subsequent macro arguments
 
@@ -155,20 +166,23 @@ accepts =PARAMS= as a =&rest= argument.  This argument is effectively a
 list of keyword arguments to the method call -- similar to how =&keys=
 works in Common Lisp.  However, collecting them as a list allows us to
 perform generic processing on them (with ~apiwrap-plist->alist~) so that
-they can be passed straight to the ~ghub-{get,put,...}~ primitives.  For
-example,
+they can be passed straight to the request primitive.  For example,
 #+BEGIN_SRC elisp
   ;; retrieve closed issues
   (my-github-wrapper-get-issues :state "closed")
 #+END_SRC
 
 If I wanted to use =:state 'closed= instead, I would need to handle that
-in my primitive function (in this case, =ghub-get=).  For example, if I
-wanted to convert symbols to strings, I could write a new 'primitive'
-function:
+in my primitive function (in this case, ~my-github-wrapper--request~).
+For example, if I wanted to convert symbols to strings, I could modify
+the function to say the following:
 #+BEGIN_SRC elisp
-  (defun my-github-wrapper--primitive-get (resource &optional params data)
-    (ghub-get resource (my-github-wrapper--preprocess-params params) data))
+  (defun my-github-wrapper--request (method resource params data)
+    (ghub-request
+     (upcase (sumbol-name method))
+     resource
+     (my-github-wrapper--preprocess-params params)
+     data))
 
   (defun my-github-wrapper--preprocess-params (alist)
     (mapcar (lambda (cell)
@@ -177,31 +191,13 @@ function:
                 cell))
             alist))
 #+END_SRC
-I would then use =my-github-wrapper--primitive-get= in my prior call to
-=apiwrap-new-backend=.
-
-A better approach, however, is to use =:pre-process-params= for this
-common case.  Like the other configuration options, you can use it in
-either the ~apiwrap-new-backend~ macro or any of the ~defapi*~ macros:
-#+BEGIN_SRC elisp
-  (defapiget-my-github-wrapper "/issues"
-    "List all issues assigned to the authenticated user across all
-  visible repositories including owned repositories, member
-  repositories, and organization repositories."
-    "issues/#list-issues"
-    :pre-process-params #'my-github-wrapper--preprocess-params)
-#+END_SRC
-Now, we can safely say
-#+BEGIN_SRC elisp
-  (my-github-wrapper-get-issues :state 'closed)
-#+END_SRC
 
 *** A complex use-case
 Of course, many method calls accept 'interpolated' parameters
 (so-called for lack of a better phrase).  Thanks to some very slick
 macro-magic, ~defapi*-my-github-wrapper~ can handle these, too!
 
-Consider the definition of
+Consider this definition of
 ~my-github-wrapper-get-repos-owner-repo-issues~:
 #+BEGIN_SRC elisp
   (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
@@ -228,7 +224,7 @@ the context of our =repo= object using syntax akin to ~let-alist~:
   ;; calls GET /repos/vermiculus/apiwrap.el/issues
 #+END_SRC
 
-*** COMMENT Multiple required parameters
+*** Multiple required parameters
 You may have noticed that you provided the =repo= symbol above in a
 /list/.  You can have as many symbols as you want in this list; they
 will all be evaluated in the string described above:
@@ -269,69 +265,10 @@ object necessary to complete the API call:
 ** Other configuration
 =API-Wrap.el= aims to be configurable enough to suit all kinds of needs.
 Each call to ~defapi*-my-github-wrapper~ can take optional keyword
-arguments as well.  Let's look at a use-case for one of these keyword
-parameters.
-
-In the GitHub API, there's a lot of junk that we might not ever care
-about.  For this, you can specify a =:post-process= function to filter
-out extraneous content.  For this example, I've written
-~remove-api-links~ below:
-#+BEGIN_SRC elisp
-  (defun remove-api-links (response)
-    "Recursively remove from alist RESPONSE all those properties that
-  point back to the API."
-    (delq nil (if (and (consp response) (consp (car response)))
-                  (mapcar #'remove-api-links response)
-                (if (consp response)
-                    (unless (and (stringp (cdr response))
-                                 (string-match-p (rx bos "https://api.github.com/")
-                                                 (cdr response)))
-                      (cons (car response)
-                            (if (consp (cdr response))
-                                (mapcar #'remove-api-links (cdr response))
-                              (cdr response))))))))
-#+END_SRC
-I can now specify this function to process the response the
-return-value ~ghub-get~:
-#+BEGIN_SRC elisp
-  (defapiget-my-github-wrapper "/repos/:owner/:repo/issues"
-    "List issues for a repository."
-    "issues/#list-issues-for-a-repository"
-    (repo) "/repos/:repo.owner.login/:repo.name/issues"
-    :post-process #'remove-api-links)
-#+END_SRC
-For wrappers that don't take any arguments, I don't need to worry
-about providing explicit =nil= values; ~def-*~ is smart enough to figure
-it out:
-#+BEGIN_SRC elisp
-  (defapiget-my-github-wrapper "/user"
-    "Return the currently authenticated user"
-    "users/#get-the-authenticated-user"
-    :post-process #'remove-api-links)
-#+END_SRC
-
-In this case, though, I /always/ want to remove the API links from the
-response.  To specify this as the default, I'll just modify my
-~api-new-backend~ form:
-#+BEGIN_SRC elisp
-  (apiwrap-new-backend "GitHub" "my-github-wrapper"
-    '((repo . "REPO is a repository alist of the form returned by `/user/repos'.")
-      (org  . "ORG is an organization alist of the form returned by `/user/orgs'."))
-    :get #'ghub-get :put #'ghub-put :head #'ghub-head
-    :post #'ghub-post :patch #'ghub-patch :delete #'ghub-delete
-    :post-process #'remove-api-links)
-#+END_SRC
-If I later have a wrapper that shouldn't post-process anything, I can
-provide an explicit =nil= value in the ~def-*~ macro's arguments:
-#+BEGIN_SRC elisp
-  (defapiget-my-github-wrapper "/user"
-    "Return the currently authenticated user"
-    "users/#get-the-authenticated-user"
-    :post-process nil)
-#+END_SRC
-
+arguments as well.  These keyword arguments can override the default
+values given in ~apiwrap-new-backend~.
 * Using Macro-Generated Wrappers
-This is the fun part!  The wrappers should be a joy to use:
+This is the fun part!  The wrappers are a joy to use:
 
 #+BEGIN_SRC elisp
   ;;; GET /issues
