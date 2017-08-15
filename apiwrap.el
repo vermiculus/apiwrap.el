@@ -262,7 +262,7 @@ These are required to be configured.")
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-gensym prefix method resource))
         resolved-resource form functions
-        primitive-func link-func post-process-func pre-process-params-func)
+        primitive-func link-func)
 
     ;; Be smart about when configuration starts.  Neither `objects' nor
     ;; `internal-resource' can be keywords, so we know that if they
@@ -282,36 +282,22 @@ These are required to be configured.")
 
     (setq internal-resource (or internal-resource resource)
           primitive-func (alist-get 'request functions)
-          post-process-func (alist-get 'post-process functions)
-          pre-process-params-func (alist-get 'pre-process-params functions)
           link-func (alist-get 'link functions))
 
     ;; If our functions are already functions (and not quoted), we'll
     ;; have to quote them for the actual defun
     (when (functionp primitive-func)
       (setq primitive-func `(function ,primitive-func)))
-    (when (functionp post-process-func)
-      (setq post-process-func `(function ,post-process-func)))
-    (when (functionp pre-process-params-func)
-      (setq pre-process-params-func `(function ,pre-process-params-func)))
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource (apiwrap-resolve-api-params
                                 `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
                               internal-resource)
           form
-          (if pre-process-params-func
-              `(apply ,primitive-func ',method ,resolved-resource
-                      (if (keywordp data)
-                          (list (funcall ,pre-process-params-func (cons data params)))
-                        (list (funcall ,pre-process-params-func params) data)))
-            `(apply ,primitive-func ',method ,resolved-resource
-                    (if (keywordp data)
-                        (list (cons data params) nil)
-                      (list params data)))))
-
-    (when post-process-func
-      (setq form `(funcall ,post-process-func ,form)))
+          `(apply ,primitive-func ',method ,resolved-resource
+                  (if (keywordp data)
+                      (list (cons data params) nil)
+                    (list params data))))
 
     (let ((props `((prefix   . ,prefix)
                    (method   . ',method)
@@ -386,23 +372,7 @@ macros.
           method    symbol  one of `get', `put', etc.
           prefix    string  the prefix used to generate wrappers
 
-        The default is `apiwrap-stdgenlink'.
-
-    :post-process
-
-        Function to process the responses of the API before
-        returning.
-
-        The default is `identity'.
-
-    :pre-process-params
-
-        Function to pre-process arguments passed as the
-        parameters to the generated wrappers.  The function is
-        passed an alist based on the plist of keyword arguments
-        given to the wrapper function and should return an alist
-
-        The default is `identity'."
+        The default is `apiwrap-stdgenlink'."
   (declare (indent 2))
   (let ((sname (cl-gensym)) (sprefix (cl-gensym))
         (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
