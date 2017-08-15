@@ -244,14 +244,14 @@ These are required to be configured.")
 
   ;; Build the macros
   (let (super-form)
-    (dolist (primitive (reverse apiwrap-primitives))
+    (dolist (method (reverse apiwrap-primitives))
       (let ((macrosym (apiwrap-gensym prefix method)))
         (push `(defmacro ,macrosym (resource doc link
                                              &optional objects internal-resource
                                              &rest functions)
-                 ,(apiwrap--docmacro name (apiwrap--kw->sym primitive))
+                 ,(apiwrap--docmacro name method)
                  (declare (indent defun) (doc-string 2))
-                 (apiwrap-gendefun ,name ,prefix ',standard-parameters ',primitive
+                 (apiwrap-gendefun ,name ,prefix ',standard-parameters ',method
                                    resource doc link objects internal-resource
                                    ',functions functions))
               super-form)))
