@@ -206,7 +206,7 @@ precedence over the defaults provided to `apiwrap-new-backend'."
          (upcase (symbol-name method))
          (make-list 2 service-name)))
 
-(defun apiwrap-genfunsym (prefix api-method &optional resource)
+(defun apiwrap-gensym (prefix api-method &optional resource)
   "Generate a symbol for a macro/function."
   (let ((api-method (symbol-name (apiwrap--kw->sym api-method))))
     (intern
@@ -245,7 +245,7 @@ configured.")
   ;; Build the macros
   (let (super-form)
     (dolist (primitive (reverse apiwrap-primitives))
-      (let ((macrosym (apiwrap-genfunsym prefix primitive)))
+      (let ((macrosym (apiwrap-gensym prefix method)))
         (push `(defmacro ,macrosym (resource doc link
                                              &optional objects internal-resource
                                              &rest functions)
@@ -260,7 +260,7 @@ configured.")
 (defun apiwrap-gendefun (name prefix standard-parameters method resource doc link objects internal-resource std-functions override-functions)
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
-        (funsym (apiwrap-genfunsym prefix method resource))
+        (funsym (apiwrap-gensym prefix method resource))
         resolved-resource form functions
         primitive-func link-func post-process-func pre-process-params-func)
 
