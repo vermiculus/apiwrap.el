@@ -223,8 +223,8 @@ precedence over the defaults provided to `apiwrap-new-backend'."
 
 (defconst apiwrap-primitives
   '(get put head post patch delete)
-  "List of primitive methods.  These are required to be
-configured.")
+  "List of primitive methods.
+These are required to be configured.")
 
 (defun apiwrap-genmacros (name prefix standard-parameters functions)
   "Validate arguments and generate all macro forms"
