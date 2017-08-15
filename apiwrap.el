@@ -303,12 +303,12 @@ These are required to be configured.")
           (if pre-process-params-func
               `(apply ,primitive-func ',method ,resolved-resource
                       (if (keywordp data)
-                          (list (funcall ,pre-process-params-func (apiwrap-plist->alist (cons data params))))
-                        (list (funcall ,pre-process-params-func (apiwrap-plist->alist params)) data)))
+                          (list (funcall ,pre-process-params-func (cons data params)))
+                        (list (funcall ,pre-process-params-func params) data)))
             `(apply ,primitive-func ',method ,resolved-resource
                     (if (keywordp data)
-                        (list (apiwrap-plist->alist (cons data params)))
-                      (list (apiwrap-plist->alist params) data)))))
+                        (list (cons data params) nil)
+                      (list params data)))))
 
     (when post-process-func
       (setq form `(funcall ,post-process-func ,form)))
