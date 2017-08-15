@@ -403,6 +403,7 @@ macros.
         given to the wrapper function and should return an alist
 
         The default is `identity'."
+  (declare (indent 2))
   (let ((sname (cl-gensym)) (sprefix (cl-gensym))
         (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
     `(let ((,sname ,name)
