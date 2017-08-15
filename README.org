@@ -8,7 +8,7 @@ application development.
 *** Lightning Tour
 #+BEGIN_SRC elisp
   (require 'apiwrap)
-  (require 'ghub)   ; backend for API primitives -- https://github.com/tarsius/ghub
+  (require 'ghub)   ; backend for API primitives -- https://github.com/magit/ghub
   ;; typical backend is <150 lines
 
   (defun my-github-wrapper--request (method resource params data)
@@ -26,9 +26,9 @@ application development.
 
   ;; Check the docstring of this new function!
   (my-github-wrapper-get-repos-owner-repo-issues
-   '((owner (login . "tarsius"))
+   '((owner (login . "magit"))
      (name . "ghub")))
-  ;; => parsed response of GET /repos/tarsius/ghub/issues
+  ;; => parsed response of GET /repos/magit/ghub/issues
 #+END_SRC
 
 *** The API Primitive Request
