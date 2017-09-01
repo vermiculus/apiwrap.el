@@ -300,7 +300,7 @@ These are required to be configured.")
                     (list params data))))
 
     (let ((props `((prefix   . ,prefix)
-                   (method   . ',method)
+                   (method   . ,method)
                    (endpoint . ,resource)
                    (link     . ,link)))
           fn-form)
