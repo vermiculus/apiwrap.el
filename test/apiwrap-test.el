@@ -21,31 +21,25 @@ If they're both alists, disregard key ordering."
     (equal a b)))
 
 (defvar test-responses nil)
-(defun test-request (url &optional params data)
-  "Respond to each identical request identically."
-  (cdr
-   (let ((request `((url . ,url) (params . ,params) (data . ,data))))
-     (or (-find (lambda (c) (test-alists-equal-p request (car c)))
-                test-responses)
-         (car (push (cons request (cl-gensym)) test-responses))))))
-
 (eval-and-compile
-  (defalias 'test-get #'test-request)
-  (defalias 'test-put #'test-request)
-  (defalias 'test-head #'test-request)
-  (defalias 'test-post #'test-request)
-  (defalias 'test-patch #'test-request)
-  (defalias 'test-delete #'test-request)
+  (defun test-request (method url params data)
+    "Respond to each identical request identically."
+    (cdr
+     (let ((request `((url . ,url)
+                      (params . ,(apiwrap-plist->alist params))
+                      (data . ,data))))
+       (or (-find (lambda (c) (test-alists-equal-p request (car c)))
+                  test-responses)
+           (car (push (cons request (cl-gensym)) test-responses))))))
 
   (defun apiwrap-test--gen-link (link-alist)
     (format "link: %s" (alist-get 'link link-alist)))
 
   (apiwrap-new-backend "Test" "test"
-                       '((sym1 . "SYM1 is a special object.")
-                         (symbol-two . "SYMBOL-TWO is a special object."))
-                       :get #'test-get :put #'test-put :head #'test-head
-                       :post #'test-post :patch #'test-patch :delete #'test-delete
-                       :link #'apiwrap-test--gen-link))
+    '((sym1 . "SYM1 is a special object.")
+      (symbol-two . "SYMBOL-TWO is a special object."))
+    :request #'test-request
+    :link #'apiwrap-test--gen-link))
 
 (ert-deftest apiwrap-macros ()
   (should (equal 'test-get-some-method
@@ -61,11 +55,11 @@ If they're both alists, disregard key ordering."
 
 (ert-deftest apiwrap-usage ()
   (should (equal (test-get-some-method)
-                 (test-request "/some/method")))
+                 (test-request 'get "/some/method" nil nil)))
   (should (equal (test-get-echo-one-arg '((a . "value-for-a") (b . "value for b")))
-                 (test-get "/echo/value-for-a/value%20for%20b")))
+                 (test-request 'get "/echo/value-for-a/value%20for%20b" nil nil)))
   (should (equal (test-get-some-method :arg-1 "1" :arg-2 "2")
-                 (test-get "/some/method" '((arg-1 . "1") (arg-2 . "2"))))))
+                 (test-request 'get "/some/method" '(:arg-1 "1" :arg-2 "2") nil))))
 
 (ert-deftest apiwrap-resolve-params ()
   (let ((obj '((name . "Hello-World")
