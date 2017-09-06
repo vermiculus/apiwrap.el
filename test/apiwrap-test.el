@@ -72,10 +72,10 @@ If they're both alists, disregard key ordering."
                  ("/:owner.login" . "/octocat")
                  ("/:owner.login/" . "/octocat/"))))
     (dolist (test tests)
-      (should (string= (cdr test) (eval (apiwrap-resolve-api-params 'obj (car test)))))))
+      (should (string= (cdr test) (eval (apiwrap-genform-resolve-api-params obj (car test)))))))
   (should (string= (let ((obj '((name . "hello^world")
                                 (owner (login . "octo^cat")))))
-                     (eval (apiwrap-resolve-api-params 'obj "/:owner.login/:name")))
+                     (eval (apiwrap-genform-resolve-api-params obj "/:owner.login/:name")))
                    "/octo%5Ecat/hello%5Eworld")))
 
 (ert-deftest apiwrap-plist-to-alist ()

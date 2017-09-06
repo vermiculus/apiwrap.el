@@ -34,15 +34,12 @@
 
 (require 'cl-lib)
 
-(defun apiwrap-resolve-api-params (object url &optional noencode)
+(defun apiwrap-genform-resolve-api-params (object url)
   "Resolve parameters in URL to values in OBJECT.
-
-Unless NOENCODE is non-nil, OBJECT values will be passed through
-`url-encode-url'.
 
 Example:
 
-    \(apiwrap-resolve-api-params
+    \(apiwrap-genform-resolve-api-params
         '\(\(name . \"Hello-World\"\)
           \(owner \(login . \"octocat\"\)\)\)
       \"/repos/:owner.login/:name/issues\"\)
@@ -53,30 +50,27 @@ Example:
   (declare (indent 1))
   ;; Yes I know it's hacky, but it works and it's compile-time
   ;; (which is to say: pull-requests welcome!)
-  (macroexp--expand-all
-   `(let-alist ,object
-      ,(let ((in-string t))
-         (with-temp-buffer
-           (insert url)
-           (goto-char 0)
-           (insert "(concat \"")
-           (while (search-forward ":" nil t)
-             (goto-char (1- (point)))
-             (insert "\" ")
-             (unless noencode (insert "(apiwrap--encode-url "))
-             (insert ".")
-             (setq in-string nil)
-             (delete-char 1)
-             (when (search-forward "/" nil t)
-               (goto-char (1- (point)))
-               (unless noencode (insert ")"))
-               (insert " \"")
-               (setq in-string t)))
-           (goto-char (point-max))
-           (if in-string (insert "\"")
-             (unless noencode (insert ")")))
-           (insert ")")
-           (delete "" (read (buffer-string))))))))
+  (save-match-data
+    (with-temp-buffer
+      (insert url)
+      (goto-char 0)
+      (let ((param-regexp (rx ":" (group (+? (any alpha "-" "."))) (or (group "/") eos)))
+            replacements)
+        (while (search-forward-regexp param-regexp nil 'noerror)
+          (push (match-string-no-properties 1) replacements)
+          (if (null (match-string-no-properties 2))
+              (replace-match "%s")
+            (replace-match "%s/")))
+        (setq replacements
+              (mapcar (lambda (s) (list #'apiwrap--encode-url (make-symbol (concat "." s))))
+                      (nreverse replacements)))
+        (macroexpand-all
+         `(let-alist ,(if (or (symbolp object)
+                              (and (listp object)
+                                   (not (consp (car object)))))
+                          object
+                        `',object)
+            (format ,(buffer-string) ,@replacements)))))))
 
 (defun apiwrap--encode-url (thing)
   (if (numberp thing)
@@ -261,7 +255,7 @@ These are required to be configured.")
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-gensym prefix method resource))
-        resolved-resource form functions
+        resolved-resource-form form functions
         primitive-func link-func)
 
     ;; Be smart about when configuration starts.  Neither `objects' nor
@@ -290,11 +284,12 @@ These are required to be configured.")
       (setq primitive-func `(function ,primitive-func)))
 
     ;; Alright, we're ready to build our function
-    (setq resolved-resource (apiwrap-resolve-api-params
-                                `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
-                              internal-resource)
+    (setq resolved-resource-form
+          (apiwrap-genform-resolve-api-params
+              `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
+            internal-resource)
           form
-          `(apply ,primitive-func ',method ,resolved-resource
+          `(apply ,primitive-func ',method ,resolved-resource-form
                   (if (keywordp data)
                       (list (cons data params) nil)
                     (list params data))))
