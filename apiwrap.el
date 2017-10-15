@@ -6,7 +6,7 @@
 ;; Keywords: tools, maint, convenience
 ;; Homepage: https://github.com/vermiculus/apiwrap.el
 ;; Package-Requires: ((emacs "25"))
-;; Package-Version: 0.2
+;; Package-Version: 0.3
 
 ;; This file is not part of GNU Emacs.
 
@@ -252,11 +252,18 @@ appropriately handle all of these symbols as a METHOD.")
               super-form)))
     super-form))
 
+(defun apiwrap--maybe-apply (func value)
+  "Conditionally apply FUNC to VALUE.
+If FUNC is non-nil, return a form to apply FUNC to VALUE.
+Otherwise, just return VALUE quoted."
+  (if func `(funcall ,func ,value) value))
+
 (defun apiwrap-gendefun (name prefix standard-parameters method resource doc link objects internal-resource std-functions override-functions)
   "Generate a single defun form"
   (let ((args '(&optional data &rest params))
         (funsym (apiwrap-gensym prefix method resource))
         resolved-resource-form form functions
+        data-massage-func params-massage-func
         primitive-func link-func)
 
     ;; Be smart about when configuration starts.  Neither `objects' nor
@@ -277,12 +284,18 @@ appropriately handle all of these symbols as a METHOD.")
 
     (setq internal-resource (or internal-resource resource)
           primitive-func (alist-get 'request functions)
+          data-massage-func (alist-get 'pre-process-data functions)
+          params-massage-func (alist-get 'pre-process-params functions)
           link-func (alist-get 'link functions))
 
     ;; If our functions are already functions (and not quoted), we'll
     ;; have to quote them for the actual defun
     (when (functionp primitive-func)
       (setq primitive-func `(function ,primitive-func)))
+    (when (functionp data-massage-func)
+      (setq data-massage-func `(function ,data-massage-func)))
+    (when (functionp params-massage-func)
+      (setq params-massage-func `(function ,params-massage-func)))
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource-form
@@ -292,8 +305,9 @@ appropriately handle all of these symbols as a METHOD.")
           form
           `(apply ,primitive-func ',method ,resolved-resource-form
                   (if (keywordp data)
-                      (list (cons data params) nil)
-                    (list params data))))
+                      (list ,(apiwrap--maybe-apply params-massage-func '(cons data params)) nil)
+                    (list ,(apiwrap--maybe-apply params-massage-func 'params)
+                          ,(apiwrap--maybe-apply data-massage-func 'data)))))
 
     (let ((props `((prefix   . ,prefix)
                    (method   . ,method)
@@ -368,7 +382,17 @@ macros.
           method    symbol  one of `get', `put', etc.
           prefix    string  the prefix used to generate wrappers
 
-        The default is `apiwrap-stdgenlink'."
+        The default is `apiwrap-stdgenlink'.
+
+    :pre-process-params
+
+        Function to process request parameters before the request
+        is passed to the `:request' function.
+
+    :pre-process-data
+
+        Function to process request data before the request is
+        passed to the `:request' function."
   (declare (indent 2))
   (let ((sname (cl-gensym)) (sprefix (cl-gensym))
         (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
