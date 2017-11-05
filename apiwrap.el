@@ -89,14 +89,8 @@ Example:
 If a PLIST key is a `:keyword', then it is converted into a
 symbol `keyword'."
   (when (= 1 (mod (length plist) 2))
-    (error "bad plist"))
-  (let (alist)
-    (while plist
-      (push (cons (apiwrap--kw->sym (car plist))
-                  (cadr plist))
-            alist)
-      (setq plist (cddr plist)))
-    alist))
+    (error "Bad plist"))
+  (cl-loop for (k v) on plist by #'cddr collect (cons (apiwrap--kw->sym k) v)))
 
 (defun apiwrap--kw->sym (kw)
   "Convert a keyword to a symbol."
