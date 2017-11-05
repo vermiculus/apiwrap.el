@@ -345,7 +345,7 @@ Otherwise, just return VALUE quoted."
 (defmacro apiwrap-new-backend (name prefix standard-parameters &rest config)
   "Define a new API backend.
 
-SERVICE-NAME is the name of the service this backend will wrap.
+NAME is the name of the service this backend will wrap.
 It will be used in docstrings of the primitive method macros.
 
 PREFIX is the prefix to use for the macros and for the
