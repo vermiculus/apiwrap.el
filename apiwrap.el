@@ -92,11 +92,11 @@ symbol `keyword'."
     (error "Bad plist"))
   (cl-loop for (k v) on plist by #'cddr collect (cons (apiwrap--kw->sym k) v)))
 
-(defun apiwrap--kw->sym (kw)
-  "Convert a keyword to a symbol."
-  (if (keywordp kw)
-      (intern (substring (symbol-name kw) 1))
-    kw))
+(defun apiwrap--kw->sym (keyword)
+  "Convert a KEYWORD to a symbol."
+  (if (keywordp keyword)
+      (intern (substring (symbol-name keyword) 1))
+    keyword))
 
 (defun apiwrap--docfn (service-name doc object-param-doc method external-resource link)
   "Documentation string for resource-wrapping functions created
