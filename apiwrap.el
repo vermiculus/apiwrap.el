@@ -64,13 +64,15 @@ Example:
         (setq replacements
               (mapcar (lambda (s) (list #'apiwrap--encode-url (make-symbol (concat "." s))))
                       (nreverse replacements)))
-        (macroexpand-all
-         `(let-alist ,(if (or (symbolp object)
+        (let ((object (if (or (symbolp object)
                               (and (listp object)
                                    (not (consp (car object)))))
                           object
-                        `',object)
-            (format ,(buffer-string) ,@replacements)))))))
+                        `',object))
+              (str `(format ,(buffer-string) ,@replacements)))
+          (if object
+              (macroexpand-all `(let-alist ,object ,str))
+            str))))))
 
 (defun apiwrap--encode-url (thing)
   (if (numberp thing)
@@ -303,8 +305,10 @@ Otherwise, just return VALUE quoted."
 
     ;; Alright, we're ready to build our function
     (setq resolved-resource-form
-          (apiwrap-genform-resolve-api-params
-              `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
+          (if objects
+              (apiwrap-genform-resolve-api-params
+                  `(list ,@(mapcar (lambda (o) `(cons ',o ,o)) objects))
+                internal-resource)
             internal-resource)
           form
           `(apply ,primitive-func ',method ,resolved-resource-form
