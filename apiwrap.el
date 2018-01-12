@@ -194,7 +194,7 @@ structure
 See the documentation of `apiwrap-resolve-api-params' for more
 details on that behavior.
 
-FUNCTIONS is a list of override configuration parameters.  Values
+CONFIG is a list of override configuration parameters.  Values
 set here (notably those explicitly set to nil) will take
 precedence over the defaults provided to `apiwrap-new-backend'."
          (upcase (symbol-name method))
@@ -248,12 +248,12 @@ appropriately handle all of these symbols as a METHOD.")
       (let ((macrosym (apiwrap-gensym prefix method)))
         (push `(defmacro ,macrosym (resource doc link
                                              &optional objects internal-resource
-                                             &rest functions)
+                                             &rest config)
                  ,(apiwrap--docmacro name method)
                  (declare (indent defun) (doc-string 2))
                  (apiwrap-gendefun ,name ,prefix ',standard-parameters ',method
                                    resource doc link objects internal-resource
-                                   ',functions functions))
+                                   ',functions config))
               super-form)))
     super-form))
 
@@ -335,7 +335,7 @@ Otherwise, just return VALUE quoted."
             fn-form)
       (cons 'prog1 fn-form))))
 
-(defmacro apiwrap-new-backend (name prefix standard-parameters &rest functions)
+(defmacro apiwrap-new-backend (name prefix standard-parameters &rest config)
   "Define a new API backend.
 
 SERVICE-NAME is the name of the service this backend will wrap.
@@ -350,8 +350,7 @@ key of the alist is the parameter name (as a symbol) and its
 value is the documentation to insert in the docstring of
 resource-wrapping functions.
 
-FUNCTIONS is a list of arguments to configure the generated
-macros.
+CONFIG is a list of arguments to configure the generated macros.
 
   Required:
 
@@ -380,6 +379,11 @@ macros.
 
   Optional:
 
+    :around
+
+        Macro to wrap around the request form (which is passed as
+        the only argument).
+
     :link
 
         Function to process an alist and return a link.  This
@@ -397,29 +401,24 @@ macros.
 
         The default is `apiwrap-stdgenlink'.
 
-    :pre-process-params
-
-        Function to process request parameters before the request
-        is passed to the `:request' function.
-
     :pre-process-data
 
         Function to process request data before the request is
         passed to the `:request' function.
 
-    :around
+    :pre-process-params
 
-        Macro to wrap around the request form (which is passed as
-        the only argument)."
+        Function to process request parameters before the request
+        is passed to the `:request' function."
   (declare (indent 2))
   (let ((sname (cl-gensym)) (sprefix (cl-gensym))
-        (sstdp (cl-gensym)) (sfuncs (cl-gensym)))
+        (sstdp (cl-gensym)) (sconfig (cl-gensym)))
     `(let ((,sname ,name)
            (,sprefix ,prefix)
            (,sstdp ,standard-parameters)
-           (,sfuncs ',(mapcar (lambda (f) (cons (car f) (eval (cdr f))))
-                              (apiwrap-plist->alist functions))))
-       (mapc #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sfuncs)))))
+           (,sconfig ',(mapcar (lambda (f) (cons (car f) (eval (cdr f))))
+                               (apiwrap-plist->alist config))))
+       (mapc #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sconfig)))))
 
 (provide 'apiwrap)
 ;;; apiwrap.el ends here

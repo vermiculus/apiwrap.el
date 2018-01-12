@@ -288,6 +288,6 @@ This is the fun part!  The wrappers are a joy to use:
      (my-github-wrapper-get-repos-owner-repo-issues repo
        :state 'closed :labels "easy")))
 #+END_SRC
-As an exercise, how would I wrap =(ghub-get "/repos/magit/magit")=?
+As an exercise, how would you wrap =(ghub-get "/repos/magit/magit")=?
 
 I hope you enjoy using =API-Wrap.el= as much as I've enjoyed writing it!
