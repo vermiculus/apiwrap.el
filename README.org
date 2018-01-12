@@ -262,6 +262,36 @@ object necessary to complete the API call:
      repo `((number . ,issue-number))))
 #+END_SRC
 
+*** Handling Errors
+When writing a request primitive, it is usually wise to signal an
+error for abnormal responses usually anything that's not =HTTP 2xx=.
+Some API endpoints, however, may intentionally return an 'error'
+status that in fact should not be considered an /error/ at all.  Take
+for example the following GitHub API endpoint:
+#+BEGIN_EXAMPLE
+GET /repos/:owner/:repo
+#+END_EXAMPLE
+This returns the repository object if it exists and HTTP 404 if it
+does not.  By convention, a wrapper function should probably return
+=nil= instead to indicate there was nothing there.  This is where the
+=:condition-case= keyword argument comes in:
+#+BEGIN_SRC elisp
+  (defapiget-my-github-wrapper "/repos/:owner/:repo"
+    "Get a specific repository object."
+    "repos/#get"
+    (repo) "/repos/:repo.owner.login/:repo.name"
+    :condition-case
+    ((ghub-404 nil)))
+#+END_SRC
+Now, on receiving the =ghub-404= signal,
+~my-github-wrapper-get-repos-owner-repo~ will return =nil= instead of
+passing that error back up to the caller.
+
+It's recommended that this configuration is not used at the
+~apiwrap-new-backend~ level and instead left to each specific endpoint
+per that endpoint's documentation.  Errors should still be errors --
+think twice before you add any 'fancy' error-handling here.
+
 ** Other configuration
 =API-Wrap.el= aims to be configurable enough to suit all kinds of needs.
 Each call to ~defapi*-my-github-wrapper~ can take optional keyword

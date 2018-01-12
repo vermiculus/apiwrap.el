@@ -1,12 +1,12 @@
 ;;; apiwrap.el --- api-wrapping macros     -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Sean Allred
+;; Copyright (C) 2017-2018  Sean Allred
 
 ;; Author: Sean Allred <code@seanallred.com>
 ;; Keywords: tools, maint, convenience
 ;; Homepage: https://github.com/vermiculus/apiwrap.el
 ;; Package-Requires: ((emacs "25"))
-;; Package-Version: 0.3
+;; Package-Version: 0.4
 
 ;; This file is not part of GNU Emacs.
 
@@ -269,7 +269,7 @@ Otherwise, just return VALUE quoted."
         (funsym (apiwrap-gensym prefix method resource))
         resolved-resource-form form functions
         data-massage-func params-massage-func
-        primitive-func link-func around)
+        condition-case primitive-func link-func around)
 
     ;; Be smart about when configuration starts.  Neither `objects' nor
     ;; `internal-resource' can be keywords, so we know that if they
@@ -289,6 +289,7 @@ Otherwise, just return VALUE quoted."
 
     (setq internal-resource (or internal-resource resource)
           around (alist-get 'around functions)
+          condition-case (alist-get 'condition-case functions)
           primitive-func (alist-get 'request functions)
           data-massage-func (alist-get 'pre-process-data functions)
           params-massage-func (alist-get 'pre-process-params functions)
@@ -321,6 +322,14 @@ Otherwise, just return VALUE quoted."
       (unless (macrop around)
         (error ":around must be a macro: %S" around))
       (setq form (macroexpand `(,around ,form))))
+
+    (when condition-case
+      (unless (and (listp condition-case)
+                   (cl-every #'listp condition-case)
+                   (cl-every (lambda (h) (get (car h) 'error-conditions)) ;is error
+                             condition-case))
+        (error ":condition-case must be a list of error handlers; see the documentation: %S" condition-case))
+      (setq form `(condition-case _ ,form ,@condition-case)))
 
     (let ((props `((prefix   . ,prefix)
                    (method   . ,method)
@@ -383,6 +392,16 @@ CONFIG is a list of arguments to configure the generated macros.
 
         Macro to wrap around the request form (which is passed as
         the only argument).
+
+    :condition-case
+
+        List of error handlers of the form
+
+            ((CONDITION-NAME BODY...)
+             (CONDITION-NAME BODY...))
+
+        to appropriately deal with signals in the `:request'
+        primitive.  See also `condition-case'.
 
     :link
 
