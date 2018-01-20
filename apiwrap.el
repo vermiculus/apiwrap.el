@@ -340,7 +340,7 @@ Otherwise, just return VALUE quoted."
       (push `(defun ,funsym ,args
                ,(apiwrap--docfn name doc (alist-get objects standard-parameters) method resource
                                 (funcall link-func props))
-               (declare (indent 2))
+               (declare (indent ,(1+ (length objects))))
                ,form)
             fn-form)
       (cons 'prog1 fn-form))))
