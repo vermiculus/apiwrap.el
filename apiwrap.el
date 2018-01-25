@@ -34,6 +34,10 @@
 
 (require 'cl-lib)
 
+(defvar apiwrap-backends nil
+  "An alist of (BACKEND-NAME . BACKEND-PREFIX) for `apropos-api-endpoint'.
+See also `apiwrap-new-backend'.")
+
 (defun apiwrap-genform-resolve-api-params (object url)
   "Resolve parameters in URL to values in OBJECT.
 
@@ -438,7 +442,25 @@ CONFIG is a list of arguments to configure the generated macros.
            (,sstdp ,standard-parameters)
            (,sconfig ',(mapcar (lambda (f) (cons (car f) (eval (cdr f))))
                                (apiwrap-plist->alist config))))
+       (add-to-list 'apiwrap-backends (cons ,sname ,sprefix))
        (mapc #'eval (apiwrap-genmacros ,sname ,sprefix ,sstdp ,sconfig)))))
+
+(defun apropos-api-endpoint (backend pattern)
+  "Apropos for API endpoints of BACKEND matching PATTERN."
+  (interactive (let* ((b (completing-read "Search backend: "
+                                          (mapcar #'car apiwrap-backends)))
+                      (b (assoc-string b apiwrap-backends))
+                      (name (car b))
+                      (prefix (cdr b)))
+                 (list prefix (apropos-read-pattern (concat name " API endpoints")))))
+  (apropos-parse-pattern pattern)
+  (apropos-symbols-internal
+   (apropos-internal apropos-regexp
+                     (lambda (sym)
+                       (let-alist (get sym 'apiwrap)
+                         (and .prefix
+                              (string= .prefix backend)))))
+   nil))
 
 (provide 'apiwrap)
 ;;; apiwrap.el ends here
