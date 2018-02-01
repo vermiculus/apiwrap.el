@@ -33,6 +33,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'apropos)
 
 (defvar apiwrap-backends nil
   "An alist of (BACKEND-NAME . BACKEND-PREFIX) for `apropos-api-endpoint'.
