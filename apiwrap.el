@@ -292,7 +292,7 @@ Otherwise, just return VALUE quoted."
 
     (setq internal-resource (or internal-resource resource)
           around (alist-get 'around functions)
-          condition-case (alist-get 'condition-case functions)
+          condition-case (macroexpand-all (alist-get 'condition-case functions))
           primitive-func (alist-get 'request functions)
           data-massage-func (alist-get 'pre-process-data functions)
           params-massage-func (alist-get 'pre-process-params functions)
