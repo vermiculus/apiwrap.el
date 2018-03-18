@@ -243,9 +243,7 @@ appropriately handle all of these symbols as a METHOD.")
                        (eq 'function (car fn))
                        (or (functionp (cadr fn))
                            (macrop (cadr fn)))))
-        (if (memq key apiwrap-primitives)
-            (error "Primitive function literal required: %s" key)
-          (byte-compile-warn "Unknown function for `%S': %S" key fn)))))
+        (byte-compile-warn "Unknown function for `%S': %S" key fn))))
 
   ;; Build the macros
   (let (super-form)
