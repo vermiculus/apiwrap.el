@@ -332,7 +332,7 @@ Otherwise, just return VALUE quoted."
                    (cl-every (lambda (h) (get (car h) 'error-conditions)) ;is error
                              condition-case))
         (error ":condition-case must be a list of error handlers; see the documentation: %S" condition-case))
-      (setq form `(condition-case _ ,form ,@condition-case)))
+      (setq form `(condition-case it ,form ,@condition-case)))
 
     (let ((props `((prefix   . ,prefix)
                    (method   . ,method)
@@ -405,7 +405,12 @@ CONFIG is a list of arguments to configure the generated macros.
              (CONDITION-NAME BODY...))
 
         to appropriately deal with signals in the `:request'
-        primitive.  See also `condition-case'.
+        primitive.  Caught signals are bound to the symbol `it'.
+        Note that the form will need to mention `it' in some way
+        to avoid compile warnings.  If this is a problem for you,
+        track resolution of this issue in vermiculus/apiwrap#12.
+
+        See also `condition-case'.
 
     :link
 
