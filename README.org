@@ -155,7 +155,7 @@ we'll see all of our information included in the docstring:
 #+END_EXAMPLE
 In addition to the documentation we provided, the =DATA= and =PARAMS=
 parameters have been added to the function and appropriately
-documented.  At the end of the documentaton, we report that the
+documented.  At the end of the documentation, we report that the
 function was generated from a raw method call and where that method is
 fully documented (e.g., what =PARAMS= it accepts, what the format of
 =DATA= is, the structure of its response, etc.).
